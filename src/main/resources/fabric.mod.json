@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "id": "rpg",
+  "version": "${version}",
+  "name": "RPG Stats Mod",
+  "description": "RPG leveling and stats system",
+  "authors": ["TvoiNik"],
+  "license": "MIT",
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "com.example.rpg.Rpg"
+    ],
+    "client": [
+      "com.example.rpg.RpgClient"
+    ]
+  },
+  "mixins": [
+    "rpg.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=0.15.0",
+    "minecraft": "~1.20.1",
+    "java": ">=17",
+    "fabric-api": "*"
+  }
+}

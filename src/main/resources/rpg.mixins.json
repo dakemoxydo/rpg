@@ -1,0 +1,13 @@
+{
+  "required": true,
+  "package": "com.example.rpg.mixin",
+  "compatibilityLevel": "JAVA_17",
+  "mixins": [
+    "PlayerStatsDataMixin",
+    "LootingMixin"
+  ],
+  "client": [],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}
