@@ -10,7 +10,7 @@ import com.example.rpg.config.RpgLocale;
 import com.example.rpg.stats.IPlayerStatsAccessor;
 import com.example.rpg.stats.MagicElement;
 import com.example.rpg.stats.PlayerStatsData;
-import com.example.rpg.util.RenderUtils;
+import com.example.rpg.utils.RenderUtils;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.widget.ButtonWidget;
@@ -35,7 +35,6 @@ public class SettingsScreen extends Screen {
     // Скроллинг
     private double scrollOffset = 0;
     private int maxScroll = 0;
-    private boolean isDraggingScroll = false;
 
     // Вспомогательный класс для записи в списке
     private record BindEntry(String id, String label, ButtonWidget button, int relativeY, boolean isHeader) {

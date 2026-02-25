@@ -8,7 +8,7 @@ import com.example.rpg.config.RpgConfig;
 import com.example.rpg.config.RpgLocale;
 import com.example.rpg.network.StatsNetworking;
 import com.example.rpg.stats.*;
-import com.example.rpg.util.RenderUtils;
+import com.example.rpg.utils.RenderUtils;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
@@ -22,7 +22,10 @@ public class StatsScreen extends Screen {
     private int panelWidth, panelHeight, statRowHeight, panelX, panelY, padding;
     private float uiScale;
 
-    private enum Tab { STATS, SKILLS, MAGIC }
+    private enum Tab {
+        STATS, SKILLS, MAGIC
+    }
+
     private Tab currentTab = Tab.STATS;
     private PlayerStatsData cachedData;
 
@@ -37,8 +40,8 @@ public class StatsScreen extends Screen {
         cachedData = getPlayerData();
 
         if (cachedData != null && !cachedData.hasElement()) {
-            MinecraftClient.getInstance().execute(() ->
-                    MinecraftClient.getInstance().setScreen(new ElementSelectionScreen()));
+            MinecraftClient.getInstance()
+                    .execute(() -> MinecraftClient.getInstance().setScreen(new ElementSelectionScreen()));
             return;
         }
         rebuildButtons();
@@ -46,30 +49,34 @@ public class StatsScreen extends Screen {
 
     private void calculateAdaptiveSizes() {
         uiScale = Math.max(0.6f, Math.min(1.0f, Math.min(
-                (float)(this.width - 40) / 340,
-                (float)(this.height - 40) / 360)));
-        panelWidth = (int)(340 * uiScale);
-        panelHeight = (int)(360 * uiScale);
-        statRowHeight = (int)(26 * uiScale);
-        padding = (int)(12 * uiScale);
+                (float) (this.width - 40) / 340,
+                (float) (this.height - 40) / 360)));
+        panelWidth = (int) (340 * uiScale);
+        panelHeight = (int) (360 * uiScale);
+        statRowHeight = (int) (26 * uiScale);
+        padding = (int) (12 * uiScale);
         panelX = (this.width - panelWidth) / 2;
         panelY = (this.height - panelHeight) / 2;
     }
 
     private void rebuildButtons() {
         this.clearChildren();
-        if (cachedData == null) cachedData = getPlayerData();
-        if (cachedData == null) return;
+        if (cachedData == null)
+            cachedData = getPlayerData();
+        if (cachedData == null)
+            return;
 
-        int tabSpacing = (int)(6 * uiScale);
+        int tabSpacing = (int) (6 * uiScale);
         int totalTabWidth = panelWidth - padding * 2;
         int tabWidth = (totalTabWidth - tabSpacing * 2) / 3;
-        int tabHeight = (int)(18 * uiScale);
-        int tabY = panelY + (int)(50 * uiScale);
+        int tabHeight = (int) (18 * uiScale);
+        int tabY = panelY + (int) (50 * uiScale);
 
         addTabButton(RpgLocale.get("tab.stats"), Tab.STATS, panelX + padding, tabY, tabWidth, tabHeight);
-        addTabButton(RpgLocale.get("tab.skills"), Tab.SKILLS, panelX + padding + tabWidth + tabSpacing, tabY, tabWidth, tabHeight);
-        addTabButton(RpgLocale.get("tab.magic"), Tab.MAGIC, panelX + padding + (tabWidth + tabSpacing) * 2, tabY, tabWidth, tabHeight);
+        addTabButton(RpgLocale.get("tab.skills"), Tab.SKILLS, panelX + padding + tabWidth + tabSpacing, tabY, tabWidth,
+                tabHeight);
+        addTabButton(RpgLocale.get("tab.magic"), Tab.MAGIC, panelX + padding + (tabWidth + tabSpacing) * 2, tabY,
+                tabWidth, tabHeight);
 
         if (currentTab == Tab.STATS) {
             buildStatsButtons();
@@ -86,80 +93,83 @@ public class StatsScreen extends Screen {
     private void addTabButton(String name, Tab tab, int x, int y, int w, int h) {
         this.addDrawableChild(ButtonWidget.builder(
                 Text.literal(currentTab == tab ? "§a[" + name + "]" : name),
-                button -> { currentTab = tab; rebuildButtons(); }
-        ).dimensions(x, y, w, h).build());
+                button -> {
+                    currentTab = tab;
+                    rebuildButtons();
+                }).dimensions(x, y, w, h).build());
     }
 
     // ==================== STATS TAB ====================
 
     private void buildStatsButtons() {
-        int buttonWidth = (int)(24 * uiScale);
-        int buttonHeight = (int)(18 * uiScale);
+        int buttonWidth = (int) (24 * uiScale);
+        int buttonHeight = (int) (18 * uiScale);
         int buttonX = panelX + panelWidth - padding - buttonWidth;
-        int startY = panelY + (int)(82 * uiScale);
+        int startY = panelY + (int) (82 * uiScale);
 
         for (int i = 0; i < StatType.values().length; i++) {
             StatType stat = StatType.values()[i];
             int y = startY + (i * statRowHeight);
             this.addDrawableChild(ButtonWidget.builder(Text.literal("+"),
-                    button -> StatsNetworking.sendUpgradeRequest(stat)
-            ).dimensions(buttonX, y + (statRowHeight - buttonHeight) / 2, buttonWidth, buttonHeight).build());
+                    button -> StatsNetworking.sendUpgradeRequest(stat))
+                    .dimensions(buttonX, y + (statRowHeight - buttonHeight) / 2, buttonWidth, buttonHeight).build());
         }
     }
 
     private void buildStatsBottomButtons() {
-        int bottomY = panelY + panelHeight - (int)(32 * uiScale);
-        int btnSpacing = (int)(8 * uiScale);
+        int bottomY = panelY + panelHeight - (int) (32 * uiScale);
+        int btnSpacing = (int) (8 * uiScale);
         int totalBtnWidth = panelWidth - padding * 2;
         int btnWidth = (totalBtnWidth - btnSpacing) / 2;
-        int btnHeight = (int)(20 * uiScale);
+        int btnHeight = (int) (20 * uiScale);
 
         // Ресет статов - только в этой вкладке
         this.addDrawableChild(ButtonWidget.builder(Text.literal("§c" + RpgLocale.get("menu.reset")),
-                button -> StatsNetworking.sendResetRequest()
-        ).dimensions(panelX + padding, bottomY, btnWidth, btnHeight).build());
+                button -> StatsNetworking.sendResetRequest()).dimensions(panelX + padding, bottomY, btnWidth, btnHeight)
+                .build());
 
         // Закрыть
         this.addDrawableChild(ButtonWidget.builder(Text.literal("§f" + RpgLocale.get("menu.close")),
-                button -> close()
-        ).dimensions(panelX + padding + btnWidth + btnSpacing, bottomY, btnWidth, btnHeight).build());
+                button -> close()).dimensions(panelX + padding + btnWidth + btnSpacing, bottomY, btnWidth, btnHeight)
+                .build());
     }
 
     // ==================== SKILLS TAB ====================
 
     private void buildSkillsButtons() {
-        int buttonWidth = (int)(24 * uiScale);
-        int buttonHeight = (int)(18 * uiScale);
+        int buttonWidth = (int) (24 * uiScale);
+        int buttonHeight = (int) (18 * uiScale);
         int buttonX = panelX + panelWidth - padding - buttonWidth;
-        int startY = panelY + (int)(82 * uiScale);
+        int startY = panelY + (int) (82 * uiScale);
 
         int index = 0;
         for (Ability ability : AbilityRegistry.getAll()) {
             int y = startY + (index * statRowHeight);
             String abilityId = ability.getId();
             this.addDrawableChild(ButtonWidget.builder(Text.literal("+"),
-                    button -> StatsNetworking.sendUpgradeAbility(abilityId)
-            ).dimensions(buttonX, y + (statRowHeight - buttonHeight) / 2, buttonWidth, buttonHeight).build());
+                    button -> StatsNetworking.sendUpgradeAbility(abilityId))
+                    .dimensions(buttonX, y + (statRowHeight - buttonHeight) / 2, buttonWidth, buttonHeight).build());
             index++;
         }
     }
 
     private void buildSkillsBottomButtons() {
-        int bottomY = panelY + panelHeight - (int)(32 * uiScale);
-        int btnSpacing = (int)(8 * uiScale);
+        int bottomY = panelY + panelHeight - (int) (32 * uiScale);
+        int btnSpacing = (int) (8 * uiScale);
         int totalBtnWidth = panelWidth - padding * 2;
         int btnWidth = (totalBtnWidth - btnSpacing) / 2;
-        int btnHeight = (int)(20 * uiScale);
+        int btnHeight = (int) (20 * uiScale);
 
         // Настройки
-        this.addDrawableChild(ButtonWidget.builder(Text.literal("§7⚙ " + RpgLocale.get("settings.title").replace("⚙ ", "")),
-                button -> this.client.setScreen(new SettingsScreen(this))
-        ).dimensions(panelX + padding, bottomY, btnWidth, btnHeight).build());
+        this.addDrawableChild(ButtonWidget
+                .builder(Text.literal("§7⚙ " + RpgLocale.get("settings.title").replace("⚙ ", "")),
+                        button -> this.client.setScreen(new SettingsScreen(this)))
+                .dimensions(panelX + padding, bottomY, btnWidth, btnHeight).build());
 
         // Закрыть
         this.addDrawableChild(ButtonWidget.builder(Text.literal("§f" + RpgLocale.get("menu.close")),
-                button -> close()
-        ).dimensions(panelX + padding + btnWidth + btnSpacing, bottomY, btnWidth, btnHeight).build());
+                button -> close()).dimensions(panelX + padding + btnWidth + btnSpacing, bottomY, btnWidth, btnHeight)
+                .build());
     }
 
     // ==================== MAGIC TAB ====================
@@ -173,11 +183,11 @@ public class StatsScreen extends Screen {
         }
 
         int centerX = panelX + panelWidth / 2;
-        int startY = panelY + (int)(100 * uiScale);
-        int buttonWidth = (int)(80 * uiScale);
-        int buttonHeight = (int)(20 * uiScale);
-        int tierSpacing = (int)(45 * uiScale);
-        int branchSpacing = (int)(85 * uiScale);
+        int startY = panelY + (int) (100 * uiScale);
+        int buttonWidth = (int) (80 * uiScale);
+        int buttonHeight = (int) (20 * uiScale);
+        int tierSpacing = (int) (45 * uiScale);
+        int branchSpacing = (int) (85 * uiScale);
 
         for (MagicAbility ability : abilities) {
             int x = ability.getTier() == 0 ? centerX - buttonWidth / 2
@@ -192,7 +202,7 @@ public class StatsScreen extends Screen {
             String skillId = ability.getId();
 
             String displayName = RpgLocale.getSkillName(skillId);
-            int maxChars = (int)(buttonWidth / 6);
+            int maxChars = (int) (buttonWidth / 6);
             if (displayName.length() > maxChars) {
                 displayName = displayName.substring(0, maxChars - 2) + "..";
             }
@@ -206,17 +216,16 @@ public class StatsScreen extends Screen {
                             cachedData = getPlayerData();
                             rebuildButtons();
                         }
-                    }
-            ).dimensions(x, y, buttonWidth, buttonHeight).build());
+                    }).dimensions(x, y, buttonWidth, buttonHeight).build());
         }
     }
 
     private void buildMagicBottomButtons() {
-        int bottomY = panelY + panelHeight - (int)(32 * uiScale);
-        int btnSpacing = (int)(8 * uiScale);
+        int bottomY = panelY + panelHeight - (int) (32 * uiScale);
+        int btnSpacing = (int) (8 * uiScale);
         int totalBtnWidth = panelWidth - padding * 2;
         int btnWidth = (totalBtnWidth - btnSpacing) / 2;
-        int btnHeight = (int)(20 * uiScale);
+        int btnHeight = (int) (20 * uiScale);
 
         // Ресет стихии - только в этой вкладке
         String resetElementText = RpgConfig.get().isRussian() ? "⟲ Сброс стихии" : "⟲ Reset Element";
@@ -227,13 +236,12 @@ public class StatsScreen extends Screen {
                     MinecraftClient.getInstance().execute(() -> {
                         MinecraftClient.getInstance().setScreen(new ElementSelectionScreen());
                     });
-                }
-        ).dimensions(panelX + padding, bottomY, btnWidth, btnHeight).build());
+                }).dimensions(panelX + padding, bottomY, btnWidth, btnHeight).build());
 
         // Закрыть
         this.addDrawableChild(ButtonWidget.builder(Text.literal("§f" + RpgLocale.get("menu.close")),
-                button -> close()
-        ).dimensions(panelX + padding + btnWidth + btnSpacing, bottomY, btnWidth, btnHeight).build());
+                button -> close()).dimensions(panelX + padding + btnWidth + btnSpacing, bottomY, btnWidth, btnHeight)
+                .build());
     }
 
     // ==================== RENDER ====================
@@ -241,26 +249,33 @@ public class StatsScreen extends Screen {
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         cachedData = getPlayerData();
-        if (cachedData == null) { super.render(context, mouseX, mouseY, delta); return; }
+        if (cachedData == null) {
+            super.render(context, mouseX, mouseY, delta);
+            return;
+        }
 
         MagicElement el = cachedData.getElement();
         context.fill(0, 0, this.width, this.height, 0xBB000000);
 
         context.fill(panelX + 4, panelY + 4, panelX + panelWidth + 4, panelY + panelHeight + 4, 0x60000000);
         context.fill(panelX, panelY, panelX + panelWidth, panelY + panelHeight, el.bgDark);
-        context.fill(panelX + 2, panelY + 2, panelX + panelWidth - 2, panelY + (int)(45 * uiScale), 0x15FFFFFF);
+        context.fill(panelX + 2, panelY + 2, panelX + panelWidth - 2, panelY + (int) (45 * uiScale), 0x15FFFFFF);
         RenderUtils.drawBorder(context, panelX - 2, panelY - 2, panelWidth + 4, panelHeight + 4, el.borderPrimary);
         RenderUtils.drawBorder(context, panelX - 1, panelY - 1, panelWidth + 2, panelHeight + 2, el.borderSecondary);
 
         drawHeader(context, cachedData, el);
 
-        if (currentTab == Tab.STATS) drawStats(context, cachedData, mouseX, mouseY, el);
-        else if (currentTab == Tab.SKILLS) drawSkills(context, cachedData, mouseX, mouseY, el);
-        else drawMagicTree(context, cachedData, el);
+        if (currentTab == Tab.STATS)
+            drawStats(context, cachedData, mouseX, mouseY, el);
+        else if (currentTab == Tab.SKILLS)
+            drawSkills(context, cachedData, mouseX, mouseY, el);
+        else
+            drawMagicTree(context, cachedData, el);
 
         super.render(context, mouseX, mouseY, delta);
 
-        if (currentTab == Tab.MAGIC) drawMagicSkillLevels(context, cachedData, el);
+        if (currentTab == Tab.MAGIC)
+            drawMagicSkillLevels(context, cachedData, el);
     }
 
     private void drawHeader(DrawContext context, PlayerStatsData data, MagicElement el) {
@@ -272,9 +287,9 @@ public class StatsScreen extends Screen {
             title = RpgLocale.get("menu.title");
         }
         context.drawCenteredTextWithShadow(this.textRenderer, Text.literal(title),
-                panelX + panelWidth / 2, panelY + (int)(6 * uiScale), el.textTitle);
+                panelX + panelWidth / 2, panelY + (int) (6 * uiScale), el.textTitle);
 
-        int infoY = panelY + (int)(18 * uiScale);
+        int infoY = panelY + (int) (18 * uiScale);
         String levelText = RpgLocale.get("menu.level") + data.getCurrentLevel();
         context.drawTextWithShadow(this.textRenderer, Text.literal(levelText),
                 panelX + padding, infoY, el.textPrimary);
@@ -289,14 +304,14 @@ public class StatsScreen extends Screen {
 
     private void drawXpBar(DrawContext context, PlayerStatsData data, MagicElement el) {
         int barX = panelX + padding;
-        int barY = panelY + (int)(32 * uiScale);
+        int barY = panelY + (int) (32 * uiScale);
         int barWidth = panelWidth - padding * 2;
-        int barHeight = (int)(6 * uiScale);
+        int barHeight = (int) (6 * uiScale);
 
         context.fill(barX, barY, barX + barWidth, barY + barHeight, el.bgDark);
         RenderUtils.drawBorder(context, barX - 1, barY - 1, barWidth + 2, barHeight + 2, el.xpBarBorder);
 
-        int filledWidth = (int)(barWidth * data.getXpProgress());
+        int filledWidth = (int) (barWidth * data.getXpProgress());
         if (filledWidth > 0) {
             context.fill(barX, barY, barX + filledWidth, barY + barHeight, el.xpBarFill);
             context.fill(barX, barY, barX + filledWidth, barY + 2, RenderUtils.brighten(el.xpBarFill, 40));
@@ -311,7 +326,7 @@ public class StatsScreen extends Screen {
     }
 
     private void drawStats(DrawContext context, PlayerStatsData data, int mouseX, int mouseY, MagicElement el) {
-        int startY = panelY + (int)(82 * uiScale);
+        int startY = panelY + (int) (82 * uiScale);
 
         for (int i = 0; i < StatType.values().length; i++) {
             StatType stat = StatType.values()[i];
@@ -333,7 +348,7 @@ public class StatsScreen extends Screen {
                     panelX + padding + 6, y + 4, statColor);
 
             String statName = RpgLocale.getStatName(stat.name());
-            int maxNameWidth = (int)(60 * uiScale);
+            int maxNameWidth = (int) (60 * uiScale);
             int nameWidth = this.textRenderer.getWidth(statName);
             if (nameWidth > maxNameWidth) {
                 while (this.textRenderer.getWidth(statName + "..") > maxNameWidth && statName.length() > 3) {
@@ -345,22 +360,23 @@ public class StatsScreen extends Screen {
                     panelX + padding + 18, y + 4, el.textPrimary);
 
             int progBarX = panelX + padding + 18;
-            int progBarY = y + (int)(14 * uiScale);
-            int progBarWidth = (int)(55 * uiScale);
-            int progBarHeight = (int)(4 * uiScale);
+            int progBarY = y + (int) (14 * uiScale);
+            int progBarWidth = (int) (55 * uiScale);
+            int progBarHeight = (int) (4 * uiScale);
 
             context.fill(progBarX, progBarY, progBarX + progBarWidth, progBarY + progBarHeight, el.bgDark);
-            int filled = (int)(progBarWidth * ((float) level / stat.getMaxLevel()));
+            int filled = (int) (progBarWidth * ((float) level / stat.getMaxLevel()));
             if (filled > 0) {
                 context.fill(progBarX, progBarY, progBarX + filled, progBarY + progBarHeight, statColor);
             }
-            RenderUtils.drawBorder(context, progBarX - 1, progBarY - 1, progBarWidth + 2, progBarHeight + 2, el.borderSecondary);
+            RenderUtils.drawBorder(context, progBarX - 1, progBarY - 1, progBarWidth + 2, progBarHeight + 2,
+                    el.borderSecondary);
 
             String levelStr = level + "/" + stat.getMaxLevel();
             context.drawTextWithShadow(this.textRenderer, Text.literal(levelStr),
-                    progBarX + progBarWidth + 4, y + (int)(11 * uiScale), isMax ? el.textTitle : el.textSecondary);
+                    progBarX + progBarWidth + 4, y + (int) (11 * uiScale), isMax ? el.textTitle : el.textSecondary);
 
-            int costX = panelX + panelWidth - padding - (int)(50 * uiScale);
+            int costX = panelX + panelWidth - padding - (int) (50 * uiScale);
             if (!isMax) {
                 String costStr = stat.getCostPerPoint() + "SP";
                 context.drawTextWithShadow(this.textRenderer, Text.literal(costStr),
@@ -373,7 +389,7 @@ public class StatsScreen extends Screen {
     }
 
     private void drawSkills(DrawContext context, PlayerStatsData data, int mouseX, int mouseY, MagicElement el) {
-        int startY = panelY + (int)(82 * uiScale);
+        int startY = panelY + (int) (82 * uiScale);
         int index = 0;
 
         for (Ability ability : AbilityRegistry.getAll()) {
@@ -394,7 +410,7 @@ public class StatsScreen extends Screen {
                     panelX + padding + 6, y + 4, iconColor);
 
             String abilityName = RpgLocale.getAbilityName(ability.getId());
-            int maxNameWidth = (int)(65 * uiScale);
+            int maxNameWidth = (int) (65 * uiScale);
             if (this.textRenderer.getWidth(abilityName) > maxNameWidth) {
                 while (this.textRenderer.getWidth(abilityName + "..") > maxNameWidth && abilityName.length() > 3) {
                     abilityName = abilityName.substring(0, abilityName.length() - 1);
@@ -407,14 +423,14 @@ public class StatsScreen extends Screen {
             String resourceType = ability.usesStamina() ? "§6⚡" : "§9✧";
             String info = resourceType + ability.getResourceCost() + " §7CD:" + ability.getCooldownSeconds() + "s";
             context.drawTextWithShadow(this.textRenderer, Text.literal(info),
-                    panelX + padding + 18, y + (int)(13 * uiScale), el.textSecondary);
+                    panelX + padding + 18, y + (int) (13 * uiScale), el.textSecondary);
 
             String levelStr = level + "/" + ability.getMaxLevel();
-            int levelX = panelX + panelWidth - padding - (int)(75 * uiScale);
+            int levelX = panelX + panelWidth - padding - (int) (75 * uiScale);
             context.drawTextWithShadow(this.textRenderer, Text.literal(levelStr),
                     levelX, y + 4, isMax ? el.textTitle : el.textSecondary);
 
-            int costX = panelX + panelWidth - padding - (int)(45 * uiScale);
+            int costX = panelX + panelWidth - padding - (int) (45 * uiScale);
             if (!isMax) {
                 context.drawTextWithShadow(this.textRenderer, Text.literal("2SP"),
                         costX, y + 4, canUpgrade ? MagicElement.TEXT_WARNING : MagicElement.TEXT_ERROR);
@@ -429,7 +445,7 @@ public class StatsScreen extends Screen {
     private void drawMagicTree(DrawContext context, PlayerStatsData data, MagicElement el) {
         String magicTitle = el.getIcon() + " " + RpgLocale.getElementName(el.name());
         context.drawCenteredTextWithShadow(this.textRenderer, Text.literal(magicTitle),
-                panelX + panelWidth / 2, panelY + (int)(84 * uiScale), el.textTitle);
+                panelX + panelWidth / 2, panelY + (int) (84 * uiScale), el.textTitle);
 
         List<MagicAbility> abilities = MagicSkillRegistry.getAbilitiesForElement(el);
         if (abilities.isEmpty()) {
@@ -441,10 +457,10 @@ public class StatsScreen extends Screen {
 
         // Рисуем линии древа
         int centerX = panelX + panelWidth / 2;
-        int startY = panelY + (int)(100 * uiScale);
-        int tierSpacing = (int)(45 * uiScale);
-        int branchSpacing = (int)(85 * uiScale);
-        int buttonHeight = (int)(20 * uiScale);
+        int startY = panelY + (int) (100 * uiScale);
+        int tierSpacing = (int) (45 * uiScale);
+        int branchSpacing = (int) (85 * uiScale);
+        int buttonHeight = (int) (20 * uiScale);
 
         // Находим максимальный тир
         int maxTier = abilities.stream().mapToInt(MagicAbility::getTier).max().orElse(0);
@@ -486,13 +502,14 @@ public class StatsScreen extends Screen {
 
     private void drawMagicSkillLevels(DrawContext context, PlayerStatsData data, MagicElement el) {
         List<MagicAbility> abilities = MagicSkillRegistry.getAbilitiesForElement(el);
-        if (abilities.isEmpty()) return;
+        if (abilities.isEmpty())
+            return;
 
         int centerX = panelX + panelWidth / 2;
-        int startY = panelY + (int)(100 * uiScale);
-        int tierSpacing = (int)(45 * uiScale);
-        int branchSpacing = (int)(85 * uiScale);
-        int buttonHeight = (int)(20 * uiScale);
+        int startY = panelY + (int) (100 * uiScale);
+        int tierSpacing = (int) (45 * uiScale);
+        int branchSpacing = (int) (85 * uiScale);
+        int buttonHeight = (int) (20 * uiScale);
 
         for (MagicAbility ability : abilities) {
             int x = ability.getTier() == 0 ? centerX : centerX + (ability.getBranch() - 2) * branchSpacing;
@@ -500,7 +517,8 @@ public class StatsScreen extends Screen {
             int level = data.getMagicSkillLevel(ability.getId());
             String levelText = level + "/" + ability.getMaxLevel();
             int levelWidth = this.textRenderer.getWidth(levelText);
-            int levelColor = level >= ability.getMaxLevel() ? el.textTitle : level > 0 ? MagicElement.TEXT_SUCCESS : el.textSecondary;
+            int levelColor = level >= ability.getMaxLevel() ? el.textTitle
+                    : level > 0 ? MagicElement.TEXT_SUCCESS : el.textSecondary;
 
             context.fill(x - levelWidth / 2 - 2, y - 1, x + levelWidth / 2 + 2, y + 9, 0x99000000);
             context.drawTextWithShadow(this.textRenderer, Text.literal(levelText),
@@ -510,8 +528,14 @@ public class StatsScreen extends Screen {
 
     private String getStatIcon(StatType stat) {
         return switch (stat) {
-            case HEALTH -> "♥"; case STRENGTH -> "⚔"; case SPEED -> "»"; case JUMP -> "↑";
-            case MANA -> "✧"; case STAMINA -> "⚡"; case FORTUNE -> "◆"; case LOOTING -> "★";
+            case HEALTH -> "♥";
+            case STRENGTH -> "⚔";
+            case SPEED -> "»";
+            case JUMP -> "↑";
+            case MANA -> "✧";
+            case STAMINA -> "⚡";
+            case FORTUNE -> "◆";
+            case LOOTING -> "★";
         };
     }
 
@@ -524,10 +548,15 @@ public class StatsScreen extends Screen {
 
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-        if (keyCode == RpgConfig.get().getOpenMenuKey()) { close(); return true; }
+        if (keyCode == RpgConfig.get().getOpenMenuKey()) {
+            close();
+            return true;
+        }
         return super.keyPressed(keyCode, scanCode, modifiers);
     }
 
     @Override
-    public boolean shouldPause() { return false; }
+    public boolean shouldPause() {
+        return false;
+    }
 }

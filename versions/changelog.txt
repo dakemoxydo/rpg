@@ -1,10 +1,15 @@
 # RPG Mod Changelog
 
 ## v1.0.0
-- Initialized automated version tracking and changelog generation.
-- Implemented dual-language (EN/RU) support for `/rpg help`.
-- Overhauled `/rpg reset` to parse specific player targets and forcibly clear client UI keybinds via S2C packets.
-- Fixed keybind assignment bugs inside `SettingsScreen` (allowed rebinding to mouse buttons).
-- Re-architected Magic Trees: Removed 'Mastery' node dependency and set base elemental spells as Tree Roots (Tier 0).
-- Created a comprehensive core-loop guide locating inside `Guides/mod_guide.txt`.
-- Added the `github-auto-commit` and `skill-creator` agent automation skills.
+- Добавлена система автоматического обновления версий и генерации списка изменений.
+- Реализована поддержка двух языков (EN/RU) для команды `/rpg help`.
+- Переработана команда `/rpg reset`: добавлено разделение по игрокам и принудительная очистка пользовательских клавиш клиента через S2C пакеты.
+- Исправлены баги с назначением клавиш в `SettingsScreen` (теперь можно переназначать на кнопки мыши).
+- Переработано Древо Магии: удалена зависимость от ноды 'Mastery', базовые стихийные заклинания стали корнями древа (Tier 0).
+- Создан подробный гайд по основному циклу игры, расположенный в `Guides/mod_guide.txt`.
+- Добавлены навыки автоматизации агента `github-auto-commit` и `skill-creator`.
+
+
+## v1.1.0.0
+- В интерфейс (HUD) добавлена анимация перезарядки (cooldown), затемняющая иконку навыка сверху вниз с отображением таймера в секундах.
+- Исправлен интерфейс Настроек: починен скролл и корректно отображаются кнопки для назначения горячих клавиш выученных навыков.
