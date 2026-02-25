@@ -3,7 +3,7 @@ package com.example.rpg.ability;
 import net.minecraft.server.network.ServerPlayerEntity;
 import org.lwjgl.glfw.GLFW;
 
-public abstract class Ability {
+public abstract class Ability implements IAbility {
 
     protected final String id;
     protected final int maxLevel;
@@ -24,17 +24,44 @@ public abstract class Ability {
     }
 
     public abstract void execute(ServerPlayerEntity player, int abilityLevel);
+
     public abstract String getIcon();
 
-    public String getId() { return id; }
-    public int getMaxLevel() { return maxLevel; }
-    public int getCostPerLevel() { return costPerLevel; }
-    public int getResourceCost() { return resourceCost; }
-    public int getResourceCost(int level) { return resourceCost + (level - 1) * 5; }
-    public int getCooldownSeconds() { return cooldownSeconds; }
-    public int getCooldownTicks() { return cooldownSeconds * 20; }
-    public boolean usesStamina() { return usesStamina; }
-    public int getDefaultKey() { return defaultKey; }
+    public String getId() {
+        return id;
+    }
+
+    public int getMaxLevel() {
+        return maxLevel;
+    }
+
+    public int getCostPerLevel() {
+        return costPerLevel;
+    }
+
+    public int getResourceCost() {
+        return resourceCost;
+    }
+
+    public int getResourceCost(int level) {
+        return resourceCost + (level - 1) * 5;
+    }
+
+    public int getCooldownSeconds() {
+        return cooldownSeconds;
+    }
+
+    public int getCooldownTicks() {
+        return cooldownSeconds * 20;
+    }
+
+    public boolean usesStamina() {
+        return usesStamina;
+    }
+
+    public int getDefaultKey() {
+        return defaultKey;
+    }
 
     public static class Builder {
         private final String id;
@@ -45,13 +72,43 @@ public abstract class Ability {
         private boolean usesStamina = false;
         private int defaultKey = GLFW.GLFW_KEY_UNKNOWN;
 
-        public Builder(String id) { this.id = id; }
-        public Builder maxLevel(int v) { maxLevel = v; return this; }
-        public Builder costPerLevel(int v) { costPerLevel = v; return this; }
-        public Builder resourceCost(int v) { resourceCost = v; return this; }
-        public Builder cooldown(int v) { cooldownSeconds = v; return this; }
-        public Builder usesStamina() { usesStamina = true; return this; }
-        public Builder usesMana() { usesStamina = false; return this; }
-        public Builder defaultKey(int key) { defaultKey = key; return this; } // НОВЫЙ МЕТОД
+        public Builder(String id) {
+            this.id = id;
+        }
+
+        public Builder maxLevel(int v) {
+            maxLevel = v;
+            return this;
+        }
+
+        public Builder costPerLevel(int v) {
+            costPerLevel = v;
+            return this;
+        }
+
+        public Builder resourceCost(int v) {
+            resourceCost = v;
+            return this;
+        }
+
+        public Builder cooldown(int v) {
+            cooldownSeconds = v;
+            return this;
+        }
+
+        public Builder usesStamina() {
+            usesStamina = true;
+            return this;
+        }
+
+        public Builder usesMana() {
+            usesStamina = false;
+            return this;
+        }
+
+        public Builder defaultKey(int key) {
+            defaultKey = key;
+            return this;
+        } // НОВЫЙ МЕТОД
     }
 }

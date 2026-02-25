@@ -180,12 +180,12 @@ public class SettingsScreen extends Screen {
     }
 
     private void calculateAdaptiveSizes() {
-        uiScale = Math.max(0.7f, Math.min(1.0f, Math.min(
-                (float) (this.width - 40) / 260,
-                (float) (this.height - 40) / 280)));
-        panelWidth = (int) (260 * uiScale);
-        panelHeight = (int) (280 * uiScale);
-        padding = (int) (12 * uiScale);
+        uiScale = Math.max(0.6f, Math.min(1.0f, Math.min(
+                (float) this.width / 500,
+                (float) this.height / 400)));
+        panelWidth = (int) (380 * uiScale);
+        panelHeight = (int) (340 * uiScale);
+        padding = (int) (18 * uiScale);
         panelX = (this.width - panelWidth) / 2;
         panelY = (this.height - panelHeight) / 2;
     }
@@ -200,48 +200,61 @@ public class SettingsScreen extends Screen {
         }
 
         renderBackground(context);
+        context.fill(0, 0, this.width, this.height, 0xAA000000); // Fullscreen vignette
 
-        // Фон панели
-        context.fill(panelX, panelY, panelX + panelWidth, panelY + panelHeight, el.bgDark);
-        RenderUtils.drawBorder(context, panelX - 2, panelY - 2, panelWidth + 4, panelHeight + 4, el.borderPrimary);
+        // Massive Glassmorphism Panel
+        int bgDark = RenderUtils.withAlpha(el == MagicElement.NONE ? 0xFF050505 : el.bgDark, 0.95f);
+        int bgMed = RenderUtils.withAlpha(el == MagicElement.NONE ? 0xFF111111 : el.bgMedium, 0.85f);
+        context.fillGradient(panelX + 6, panelY + 6, panelX + panelWidth + 6, panelY + panelHeight + 6, 0x88000000,
+                0x44000000);
+        context.fillGradient(panelX, panelY, panelX + panelWidth, panelY + panelHeight, bgDark, bgMed);
 
-        // Заголовок
-        int headerHeight = (int) (24 * uiScale);
-        context.fill(panelX + 2, panelY + 2, panelX + panelWidth - 2, panelY + headerHeight, 0x15FFFFFF);
+        int primaryBorder = el == MagicElement.NONE ? 0xFF555555 : el.borderPrimary;
+        int secondaryBorder = el == MagicElement.NONE ? 0xFF333333 : el.borderSecondary;
+        RenderUtils.drawBorder(context, panelX - 2, panelY - 2, panelWidth + 4, panelHeight + 4, primaryBorder);
+        RenderUtils.drawBorder(context, panelX - 1, panelY - 1, panelWidth + 2, panelHeight + 2, secondaryBorder);
+
+        // Header Top Bar
+        int headerHeight = (int) (32 * uiScale);
+        context.fillGradient(panelX, panelY, panelX + panelWidth, panelY + headerHeight, 0x33FFFFFF, 0x05FFFFFF);
         context.drawCenteredTextWithShadow(this.textRenderer, Text.literal(RpgLocale.get("settings.title")),
-                panelX + panelWidth / 2, panelY + (int) (7 * uiScale), el.textTitle);
-        context.fill(panelX + padding, panelY + headerHeight + 1, panelX + panelWidth - padding,
-                panelY + headerHeight + 2, el.borderSecondary);
+                panelX + panelWidth / 2, panelY + (int) (12 * uiScale),
+                el == MagicElement.NONE ? 0xFFFFD700 : el.textTitle);
+        context.fill(panelX + padding, panelY + headerHeight, panelX + panelWidth - padding, panelY + headerHeight + 1,
+                secondaryBorder);
 
-        // Статические строки (Только Язык)
-        int rowHeight = (int) (24 * uiScale);
+        // Static Row (Language)
+        int rowHeight = (int) (26 * uiScale);
         int startY = panelY + (int) (45 * uiScale);
-
         context.drawTextWithShadow(this.textRenderer, Text.literal(RpgLocale.get("settings.language")),
-                panelX + padding, startY + 4, el.textPrimary);
+                panelX + padding, startY + (int) (6 * uiScale), 0xFFFFFFFF);
 
-        // Отрисовка скроллируемого списка
-        int listY = startY + rowHeight + 10;
-        int listHeight = panelHeight - (listY - panelY) - (int) (35 * uiScale);
+        // Scrollable List Area
+        int listY = startY + rowHeight + (int) (10 * uiScale);
+        int listHeight = panelHeight - (listY - panelY) - (int) (40 * uiScale);
 
-        // Используем RenderUtils для правильной обрезки
         RenderUtils.enableScissor(context, panelX, listY, panelWidth, listHeight);
 
         for (BindEntry entry : bindEntries) {
             int y = (int) (listY + entry.relativeY - scrollOffset);
 
-            // Рендерим только если элемент виден
             if (y + rowHeight > listY && y < listY + listHeight) {
                 if (entry.isHeader) {
-                    context.drawCenteredTextWithShadow(this.textRenderer, Text.literal(entry.label),
-                            panelX + panelWidth / 2, y + 4, 0xFFFFFFFF);
+                    context.fillGradient(panelX + padding, y, panelX + panelWidth - padding - (int) (15 * uiScale),
+                            y + (int) (18 * uiScale), 0x22FFFFFF, 0x00FFFFFF);
+                    context.drawTextWithShadow(this.textRenderer, Text.literal(" " + entry.label), panelX + padding,
+                            y + (int) (5 * uiScale), el == MagicElement.NONE ? 0xFFFFD700 : el.textTitle);
+                    context.fill(panelX + padding, y + (int) (18 * uiScale),
+                            panelX + panelWidth - padding - (int) (15 * uiScale), y + (int) (19 * uiScale),
+                            secondaryBorder);
                 } else {
                     entry.button.setY(y);
+                    entry.button.setX(panelX + panelWidth - padding - entry.button.getWidth() - (int) (15 * uiScale));
                     entry.button.visible = true;
                     entry.button.render(context, mouseX, mouseY, delta);
 
                     context.drawTextWithShadow(this.textRenderer, Text.literal(entry.label),
-                            panelX + padding, y + 5, el.textPrimary);
+                            panelX + padding + (int) (10 * uiScale), y + (int) (6 * uiScale), 0xFFAAAAAA);
                 }
             } else if (!entry.isHeader) {
                 entry.button.visible = false;
@@ -250,23 +263,32 @@ public class SettingsScreen extends Screen {
 
         RenderUtils.disableScissor(context);
 
-        // Скроллбар
+        // Sleek MMO Scrollbar
         if (maxScroll > 0) {
-            int scrollbarX = panelX + panelWidth - 6;
-            int scrollbarHeight = (int) ((float) (listHeight * listHeight) / (listHeight + maxScroll));
+            int scrollbarWidth = Math.max(3, (int) (6 * uiScale));
+            int scrollbarX = panelX + panelWidth - padding;
+            int scrollbarHeight = Math.max((int) (20 * uiScale),
+                    (int) ((float) (listHeight * listHeight) / (listHeight + maxScroll)));
             int scrollbarY = listY + (int) ((listHeight - scrollbarHeight) * (scrollOffset / maxScroll));
 
-            context.fill(scrollbarX, listY, scrollbarX + 4, listY + listHeight, 0xFF202020); // Трек
-            context.fill(scrollbarX, scrollbarY, scrollbarX + 4, scrollbarY + scrollbarHeight, el.borderPrimary); // Ползунок
+            context.fillGradient(scrollbarX, listY, scrollbarX + scrollbarWidth, listY + listHeight, 0x66000000,
+                    0x88000000); // Track
+            RenderUtils.drawBorder(context, scrollbarX - 1, listY - 1, scrollbarWidth + 2, listHeight + 2, 0x44000000);
+
+            context.fillGradient(scrollbarX, scrollbarY, scrollbarX + scrollbarWidth, scrollbarY + scrollbarHeight,
+                    RenderUtils.brighten(primaryBorder, 50),
+                    RenderUtils.darken(primaryBorder, 20)); // Thumb
+            // Inner glowing rim on thumb
+            context.fill(scrollbarX, scrollbarY, scrollbarX + scrollbarWidth, scrollbarY + 1,
+                    RenderUtils.brighten(primaryBorder, 80));
         }
 
-        // Рендер статических кнопок поверх списка (чтобы не перекрывались)
+        // Render Static Buttons over everything
         languageButton.render(context, mouseX, mouseY, delta);
 
-        // Подсказка
         String hint = RpgLocale.get("settings.cancel_hint");
         context.drawCenteredTextWithShadow(this.textRenderer, Text.literal(hint),
-                panelX + panelWidth / 2, panelY + panelHeight - (int) (12 * uiScale), el.textSecondary);
+                panelX + panelWidth / 2, panelY + panelHeight - (int) (14 * uiScale), 0xFF777777);
     }
 
     @Override

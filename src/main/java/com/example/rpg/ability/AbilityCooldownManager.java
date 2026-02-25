@@ -1,6 +1,7 @@
 package com.example.rpg.ability;
 
 import com.example.rpg.network.StatsNetworking;
+
 import net.minecraft.server.network.ServerPlayerEntity;
 
 import java.util.HashMap;
@@ -18,7 +19,8 @@ public class AbilityCooldownManager {
 
     public static int getCooldown(UUID playerId, String abilityId) {
         Map<String, Integer> playerCooldowns = cooldowns.get(playerId);
-        if (playerCooldowns == null) return 0;
+        if (playerCooldowns == null)
+            return 0;
         return playerCooldowns.getOrDefault(abilityId, 0);
     }
 
@@ -26,17 +28,28 @@ public class AbilityCooldownManager {
         return getCooldown(playerId, abilityId) > 0;
     }
 
+    public static IAbility getAnyAbility(String abilityId) {
+        IAbility ability = AbilityRegistry.get(abilityId);
+        if (ability == null) {
+            ability = MagicSkillRegistry.getAbility(abilityId);
+        }
+        return ability;
+    }
+
     public static float getCooldownProgress(UUID playerId, String abilityId) {
-        Ability ability = AbilityRegistry.get(abilityId);
-        if (ability == null) return 0;
+        IAbility ability = getAnyAbility(abilityId);
+        if (ability == null)
+            return 0;
         int remaining = getCooldown(playerId, abilityId);
-        if (remaining <= 0) return 0;
+        if (remaining <= 0)
+            return 0;
         return (float) remaining / ability.getCooldownTicks();
     }
 
     public static void tick(UUID playerId) {
         Map<String, Integer> playerCooldowns = cooldowns.get(playerId);
-        if (playerCooldowns == null) return;
+        if (playerCooldowns == null)
+            return;
 
         playerCooldowns.replaceAll((k, v) -> Math.max(0, v - 1));
     }
@@ -48,7 +61,8 @@ public class AbilityCooldownManager {
     // Синхронизация всех активных кулдаунов игроку (при входе)
     public static void syncAllCooldowns(ServerPlayerEntity player) {
         Map<String, Integer> playerCooldowns = cooldowns.get(player.getUuid());
-        if (playerCooldowns == null) return;
+        if (playerCooldowns == null)
+            return;
 
         for (Map.Entry<String, Integer> entry : playerCooldowns.entrySet()) {
             if (entry.getValue() > 0) {

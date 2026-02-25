@@ -4,7 +4,9 @@ import com.example.rpg.stats.MagicElement;
 import net.minecraft.server.network.ServerPlayerEntity;
 import org.lwjgl.glfw.GLFW;
 
-public abstract class MagicAbility {
+import com.example.rpg.ability.IAbility;
+
+public abstract class MagicAbility implements IAbility {
 
     protected final String id;
     protected final MagicElement element;
@@ -31,20 +33,61 @@ public abstract class MagicAbility {
     }
 
     public abstract void execute(ServerPlayerEntity player, int skillLevel);
+
     public abstract String getIcon();
 
-    public String getId() { return id; }
-    public MagicElement getElement() { return element; }
-    public int getTier() { return tier; }
-    public int getBranch() { return branch; }
-    public int getMaxLevel() { return maxLevel; }
-    public int getCostPerLevel() { return costPerLevel; }
-    public int getManaCost() { return manaCost; }
-    public int getManaCost(int level) { return manaCost + (level - 1) * 5; }
-    public int getCooldownSeconds() { return cooldownSeconds; }
-    public int getCooldownTicks() { return cooldownSeconds * 20; }
-    public String[] getRequiredSkills() { return requiredSkills; }
-    public int getDefaultKey() { return defaultKey; }
+    public String getId() {
+        return id;
+    }
+
+    public MagicElement getElement() {
+        return element;
+    }
+
+    public int getTier() {
+        return tier;
+    }
+
+    public int getBranch() {
+        return branch;
+    }
+
+    public int getMaxLevel() {
+        return maxLevel;
+    }
+
+    public int getCostPerLevel() {
+        return costPerLevel;
+    }
+
+    public int getManaCost() {
+        return manaCost;
+    }
+
+    public int getManaCost(int level) {
+        return manaCost + (level - 1) * 5;
+    }
+
+    public int getCooldownSeconds() {
+        return cooldownSeconds;
+    }
+
+    public int getCooldownTicks() {
+        return cooldownSeconds * 20;
+    }
+
+    public String[] getRequiredSkills() {
+        return requiredSkills;
+    }
+
+    public int getDefaultKey() {
+        return defaultKey;
+    }
+
+    @Override
+    public boolean usesStamina() {
+        return false; // Магия всегда использует ману
+    }
 
     public static class Builder {
         private final String id;
@@ -58,14 +101,49 @@ public abstract class MagicAbility {
         private String[] requiredSkills = new String[0];
         private int defaultKey = GLFW.GLFW_KEY_UNKNOWN;
 
-        public Builder(String id, MagicElement element) { this.id = id; this.element = element; }
-        public Builder tier(int v) { tier = v; return this; }
-        public Builder branch(int v) { branch = v; return this; }
-        public Builder maxLevel(int v) { maxLevel = v; return this; }
-        public Builder costPerLevel(int v) { costPerLevel = v; return this; }
-        public Builder manaCost(int v) { manaCost = v; return this; }
-        public Builder cooldown(int v) { cooldownSeconds = v; return this; }
-        public Builder requires(String... v) { requiredSkills = v; return this; }
-        public Builder defaultKey(int key) { defaultKey = key; return this; } // НОВЫЙ МЕТОД
+        public Builder(String id, MagicElement element) {
+            this.id = id;
+            this.element = element;
+        }
+
+        public Builder tier(int v) {
+            tier = v;
+            return this;
+        }
+
+        public Builder branch(int v) {
+            branch = v;
+            return this;
+        }
+
+        public Builder maxLevel(int v) {
+            maxLevel = v;
+            return this;
+        }
+
+        public Builder costPerLevel(int v) {
+            costPerLevel = v;
+            return this;
+        }
+
+        public Builder manaCost(int v) {
+            manaCost = v;
+            return this;
+        }
+
+        public Builder cooldown(int v) {
+            cooldownSeconds = v;
+            return this;
+        }
+
+        public Builder requires(String... v) {
+            requiredSkills = v;
+            return this;
+        }
+
+        public Builder defaultKey(int key) {
+            defaultKey = key;
+            return this;
+        } // НОВЫЙ МЕТОД
     }
 }
