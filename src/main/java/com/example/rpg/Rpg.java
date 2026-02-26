@@ -23,6 +23,9 @@ public class Rpg implements ModInitializer {
     public void onInitialize() {
         LOGGER.info("RPG Stats Mod initializing...");
 
+        // Инициализация реестра статов
+        com.example.rpg.stats.StatRegistry.init();
+
         // Единый реестр способностей (грузит static-блок)
         AbilityRegistry.init();
 

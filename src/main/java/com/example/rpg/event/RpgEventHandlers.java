@@ -5,9 +5,6 @@ import com.example.rpg.stats.*;
 import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
 import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
 import net.minecraft.block.*;
-import net.minecraft.enchantment.EnchantmentHelper;
-import net.minecraft.enchantment.Enchantments;
-import net.minecraft.entity.EntityType;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.boss.WitherEntity;
 import net.minecraft.entity.boss.dragon.EnderDragonEntity;
@@ -17,7 +14,6 @@ import net.minecraft.entity.passive.VillagerEntity;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.server.world.ServerWorld;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -27,7 +23,8 @@ public class RpgEventHandlers {
     // ==================== ORE DATA ====================
 
     // Храним ID источника для локализации на клиенте
-    private record OreData(int xp, String sourceId, ItemStack drop) {}
+    private record OreData(int xp, String sourceId, ItemStack drop) {
+    }
 
     private static final Map<Block, OreData> ORE_DATA = new HashMap<>();
 
@@ -55,7 +52,8 @@ public class RpgEventHandlers {
     }
 
     private static void registerOre(Block block, int xp, String sourceId, net.minecraft.item.Item dropItem) {
-        ORE_DATA.put(block, new OreData(xp, sourceId, dropItem != null ? new ItemStack(dropItem) : ItemStack.EMPTY));
+        ORE_DATA.put(block, new OreData(xp, block.getTranslationKey(),
+                dropItem != null ? new ItemStack(dropItem) : ItemStack.EMPTY));
     }
 
     // ==================== REGISTRATION ====================
@@ -71,7 +69,7 @@ public class RpgEventHandlers {
             if (damageSource.getAttacker() instanceof ServerPlayerEntity player) {
                 int xp = getKillXp(entity);
                 if (xp > 0) {
-                    String sourceId = getMobSourceId(entity);
+                    String sourceId = entity.getType().getTranslationKey();
                     awardXp(player, xp, sourceId);
                 }
             }
@@ -90,56 +88,41 @@ public class RpgEventHandlers {
     }
 
     private static void registerFortuneBonus() {
-        PlayerBlockBreakEvents.AFTER.register((world, player, pos, state, blockEntity) -> {
-            if (world.isClient()) return;
-            if (!(player instanceof ServerPlayerEntity serverPlayer)) return;
-
-            OreData oreData = ORE_DATA.get(state.getBlock());
-            if (oreData == null || oreData.drop.isEmpty()) return;
-
-            ItemStack tool = player.getMainHandStack();
-            if (EnchantmentHelper.getLevel(Enchantments.SILK_TOUCH, tool) > 0) return;
-
-            RpgWorldData worldData = RpgWorldData.get(serverPlayer.getServer());
-            if (worldData == null) return;
-
-            PlayerStatsData data = worldData.getPlayerData(serverPlayer.getUuid());
-            if (data == null) return;
-
-            int rpgFortune = data.getStatLevel(StatType.FORTUNE);
-            if (rpgFortune <= 0) return;
-
-            ServerWorld serverWorld = (ServerWorld) world;
-            int extraDrops = serverWorld.getRandom().nextInt(rpgFortune + 1);
-
-            if (extraDrops > 0) {
-                ItemStack dropStack = oreData.drop.copy();
-                dropStack.setCount(extraDrops);
-                Block.dropStack(serverWorld, pos, dropStack);
-            }
-        });
+        // Obsolete: Fortune stat removed
     }
 
     // ==================== XP LOGIC ====================
 
     private static int getKillXp(LivingEntity entity) {
         // Боссы
-        if (entity instanceof EnderDragonEntity) return 500;
-        if (entity instanceof WitherEntity) return 300;
-        if (entity instanceof ElderGuardianEntity) return 100;
-        if (entity instanceof WardenEntity) return 150;
+        if (entity instanceof EnderDragonEntity)
+            return 500;
+        if (entity instanceof WitherEntity)
+            return 300;
+        if (entity instanceof ElderGuardianEntity)
+            return 100;
+        if (entity instanceof WardenEntity)
+            return 150;
 
         // Мини-боссы
-        if (entity instanceof RavagerEntity) return 50;
-        if (entity instanceof EvokerEntity) return 40;
-        if (entity instanceof VindicatorEntity) return 25;
-        if (entity instanceof WitherSkeletonEntity) return 20;
-        if (entity instanceof BlazeEntity) return 15;
-        if (entity instanceof EndermanEntity) return 15;
-        if (entity instanceof GhastEntity) return 20;
+        if (entity instanceof RavagerEntity)
+            return 50;
+        if (entity instanceof EvokerEntity)
+            return 40;
+        if (entity instanceof VindicatorEntity)
+            return 25;
+        if (entity instanceof WitherSkeletonEntity)
+            return 20;
+        if (entity instanceof BlazeEntity)
+            return 15;
+        if (entity instanceof EndermanEntity)
+            return 15;
+        if (entity instanceof GhastEntity)
+            return 20;
 
         // Обычные враги
-        if (entity instanceof HostileEntity) return 10;
+        if (entity instanceof HostileEntity)
+            return 10;
 
         // Животные
         if (entity instanceof AnimalEntity animal) {
@@ -147,38 +130,25 @@ public class RpgEventHandlers {
         }
 
         // Не даём XP за жителей
-        if (entity instanceof VillagerEntity) return 0;
+        if (entity instanceof VillagerEntity)
+            return 0;
 
         return 5;
-    }
-
-    /**
-     * Получает ID источника для локализации на клиенте
-     */
-    private static String getMobSourceId(LivingEntity entity) {
-        // Получаем ID типа сущности (например "minecraft:zombie" -> "zombie")
-        EntityType<?> type = entity.getType();
-        String fullId = EntityType.getId(type).toString();
-
-        // Убираем namespace (minecraft:zombie -> zombie)
-        String id = fullId;
-        if (fullId.contains(":")) {
-            id = fullId.substring(fullId.indexOf(':') + 1);
-        }
-
-        return id;
     }
 
     // ==================== PUBLIC API ====================
 
     public static void awardXp(ServerPlayerEntity player, int amount, String sourceId) {
-        if (player.getServer() == null) return;
+        if (player.getServer() == null)
+            return;
 
         RpgWorldData worldData = RpgWorldData.get(player.getServer());
-        if (worldData == null) return;
+        if (worldData == null)
+            return;
 
         PlayerStatsData data = worldData.getPlayerData(player.getUuid());
-        if (data == null) return;
+        if (data == null)
+            return;
 
         boolean leveledUp = data.addXp(amount);
         worldData.markDirty();
@@ -195,6 +165,6 @@ public class RpgEventHandlers {
     }
 
     public static void awardXp(ServerPlayerEntity player, int amount) {
-        awardXp(player, amount, "command");
+        awardXp(player, amount, "rpg.xp.source.command");
     }
 }

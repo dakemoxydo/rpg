@@ -40,6 +40,13 @@ public class RpgHudRenderer {
     private static final int MAX_POPUPS = 6;
     private static final int POPUP_DURATION = 200;
 
+    // ==================== COMBO HUD STATE ====================
+
+    private static float comboDamage = 0f;
+    private static int comboTicksRemaining = 0;
+    private static final int COMBO_MAX_TICKS = 100; // 5 seconds
+    private static float comboScale = 1.0f;
+
     // ==================== LAYOUT CONSTANTS ====================
 
     private static final int ICON_SIZE = 28;
@@ -56,6 +63,7 @@ public class RpgHudRenderer {
 
             tickLevelUp();
             tickXpPopups();
+            tickCombo();
 
             PlayerStatsData data = getPlayerData(client);
             if (data == null)
@@ -64,6 +72,7 @@ public class RpgHudRenderer {
             renderResourceBars(drawContext, client, data);
             renderCooldowns(drawContext, client, data);
             renderXpPopups(drawContext, client, data);
+            renderComboHUD(drawContext, client, data);
 
             if (isLevelUpActive()) {
                 renderLevelUpEffect(drawContext, client, data);
@@ -145,16 +154,17 @@ public class RpgHudRenderer {
         for (IAbility ability : activeAbilities) {
             int y = startY + index * (iconSize + spacing);
             int level = data.getSkillLevel(ability.getId());
-            renderAbilityIcon(context, textRenderer, ability, startX, y, iconSize, playerId, level, uiScale, element);
+            renderAbilityIcon(context, textRenderer, ability, startX, y, iconSize, playerId, level, uiScale, element,
+                    data);
             index++;
         }
     }
 
     private static void renderAbilityIcon(DrawContext context, TextRenderer textRenderer,
             IAbility ability, int x, int y, int iconSize,
-            UUID playerId, int level, float uiScale, MagicElement element) {
+            UUID playerId, int level, float uiScale, MagicElement element, PlayerStatsData data) {
         boolean onCooldown = AbilityCooldownManager.isOnCooldown(playerId, ability.getId());
-        float cdProgress = AbilityCooldownManager.getCooldownProgress(playerId, ability.getId(), level);
+        float cdProgress = AbilityCooldownManager.getCooldownProgress(playerId, ability.getId(), level, data);
 
         int topBgColor = onCooldown ? 0xDD111111
                 : (ability.usesStamina() ? 0xDD2a2a2a : (0xDD000000 | (element.bgMedium & 0x00FFFFFF)));
@@ -205,6 +215,81 @@ public class RpgHudRenderer {
 
             context.drawTextWithShadow(textRenderer, keyName, keyBgX, keyBgY, 0xFFAAAAAA);
         }
+    }
+
+    // ==================== COMBO HUD ====================
+
+    public static void addComboDamage(float damage) {
+        if (comboTicksRemaining <= 0) {
+            comboDamage = 0f;
+        }
+        comboDamage += damage;
+        comboTicksRemaining = COMBO_MAX_TICKS;
+        comboScale = 1.3f; // Bounce effect
+    }
+
+    private static void tickCombo() {
+        if (comboTicksRemaining > 0) {
+            comboTicksRemaining--;
+        }
+        if (comboScale > 1.0f) {
+            comboScale -= 0.05f;
+            if (comboScale < 1.0f)
+                comboScale = 1.0f;
+        }
+    }
+
+    private static void renderComboHUD(DrawContext context, MinecraftClient client, PlayerStatsData data) {
+        if (comboTicksRemaining <= 0 || comboDamage <= 0.01f)
+            return;
+
+        TextRenderer textRenderer = client.textRenderer;
+        int screenWidth = client.getWindow().getScaledWidth();
+        int screenHeight = client.getWindow().getScaledHeight();
+        float uiScale = RenderUtils.getUiScale(screenWidth);
+        MagicElement element = (data != null) ? data.getElement() : MagicElement.NONE;
+
+        float alpha = 1.0f;
+        if (comboTicksRemaining < 20) {
+            alpha = comboTicksRemaining / 20.0f;
+        }
+
+        int startX = (int) (20 * uiScale);
+        int startY = screenHeight / 2 - (int) (10 * uiScale);
+
+        MatrixStack matrices = context.getMatrices();
+        matrices.push();
+        matrices.translate(startX, startY, 0);
+        matrices.scale(comboScale * uiScale * 1.5f, comboScale * uiScale * 1.5f, 1.0f);
+
+        String dmgStr = String.format(java.util.Locale.US, "%.1f", comboDamage);
+        if (dmgStr.endsWith(".0"))
+            dmgStr = dmgStr.substring(0, dmgStr.length() - 2);
+
+        int textColor = RenderUtils.withAlpha(element != MagicElement.NONE ? element.textTitle : 0xFFFFFFFF, alpha);
+
+        context.drawTextWithShadow(textRenderer, "Combo", 0, -10,
+                RenderUtils.withAlpha(element != MagicElement.NONE ? element.textSecondary : 0xFFAAAAAA, alpha));
+        context.drawTextWithShadow(textRenderer, dmgStr, 0, 0, textColor);
+
+        matrices.pop();
+
+        int barWidth = (int) (60 * uiScale);
+        int barHeight = Math.max(2, (int) (3 * uiScale));
+        float progress = comboTicksRemaining / (float) COMBO_MAX_TICKS;
+
+        int barY = startY + (int) (25 * uiScale);
+
+        int bgAlpha = (int) (alpha * 120);
+        context.fillGradient(startX, barY, startX + barWidth, barY + barHeight, (bgAlpha << 24) | 0x000000,
+                (bgAlpha << 24) | 0x000000);
+
+        int fillAlpha = (int) (alpha * 220);
+        int elementColor = element != MagicElement.NONE ? element.manaColor : 0xAAAAAA;
+        int fillColor = (fillAlpha << 24) | (elementColor & 0xFFFFFF);
+
+        context.fillGradient(startX, barY, startX + (int) (barWidth * progress), barY + barHeight, fillColor,
+                RenderUtils.darken(fillColor, 20));
     }
 
     // ==================== RESOURCE BARS ====================
@@ -393,6 +478,12 @@ public class RpgHudRenderer {
         for (XpPopupEntry popup : xpPopups)
             popup.targetOffsetY += 16;
         xpPopups.add(new XpPopupEntry(xpAmount, source, POPUP_DURATION));
+
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client.player != null) {
+            float pitch = 0.9f + (client.world.random.nextFloat() * 0.4f);
+            client.player.playSound(SoundEvents.ENTITY_EXPERIENCE_ORB_PICKUP, 0.4f, pitch);
+        }
     }
 
     private static void tickXpPopups() {
@@ -437,6 +528,14 @@ public class RpgHudRenderer {
             int totalWidth = xpWidth + sourceWidth;
             int textX = baseX - totalWidth / 2;
 
+            float popScale = popup.getScale();
+
+            MatrixStack matrices = context.getMatrices();
+            matrices.push();
+            matrices.translate(baseX, y + 8, 0); // Center translation for scale
+            matrices.scale(popScale, popScale, 1.0f);
+            matrices.translate(-baseX, -(y + 8), 0);
+
             int bgAlpha = (int) (alpha * 160);
             if (bgAlpha > 0) {
                 int bgColorTop = (bgAlpha << 24) | (element.bgDark & 0x00FFFFFF);
@@ -457,6 +556,8 @@ public class RpgHudRenderer {
                 context.drawTextWithShadow(textRenderer, sourceText, textX + xpWidth, y,
                         RenderUtils.withAlpha(element.textSecondary, alpha));
             }
+
+            matrices.pop();
         }
     }
 
@@ -481,6 +582,15 @@ public class RpgHudRenderer {
                 return Math.min(1f, elapsed / 8.0f);
             if (ticksRemaining < 50)
                 return Math.min(1f, ticksRemaining / 50.0f);
+            return 1.0f;
+        }
+
+        float getScale() {
+            int elapsed = POPUP_DURATION - ticksRemaining;
+            if (elapsed < 4)
+                return 0.5f + (elapsed / 4.0f) * 0.7f; // 0.5 to 1.2
+            if (elapsed < 8)
+                return 1.2f - ((elapsed - 4) / 4.0f) * 0.2f; // 1.2 to 1.0
             return 1.0f;
         }
     }

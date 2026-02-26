@@ -4,6 +4,8 @@ import com.example.rpg.ability.magic.MagicAbility;
 import com.example.rpg.stats.MagicElement;
 import net.minecraft.entity.projectile.SmallFireballEntity;
 import net.minecraft.server.network.ServerPlayerEntity;
+import com.example.rpg.stats.PlayerStatsData;
+import com.example.rpg.stats.RpgWorldData;
 import net.minecraft.sound.SoundCategory;
 import net.minecraft.sound.SoundEvents;
 import net.minecraft.util.math.Vec3d;
@@ -24,22 +26,23 @@ public class FireballAbility extends MagicAbility {
     }
 
     @Override
-    public float getPower(int level) {
+    public float getPower(int level, com.example.rpg.stats.PlayerStatsData data) {
         return (float) (1.0 + (Math.max(1, level) * 0.2));
     }
 
     @Override
-    public String getUpgradeDescription(int currentLevel) {
+    public String getUpgradeDescription(int currentLevel, com.example.rpg.stats.PlayerStatsData data) {
         if (currentLevel == 0) {
-            return com.example.rpg.config.RpgLocale.get("upgrade.unlock_ability")
-                    + com.example.rpg.config.RpgLocale.getSkillName(getId());
+            return com.example.rpg.config.RpgLocale.get("upgrade.unlock_general");
         }
         if (currentLevel >= getMaxLevel()) {
             return com.example.rpg.config.RpgLocale.get("upgrade.max_level");
         }
-        return String.format(com.example.rpg.config.RpgLocale.get("upgrade.fireball"),
-                getPower(currentLevel), getPower(currentLevel + 1),
-                getCooldownSeconds(currentLevel), getCooldownSeconds(currentLevel + 1));
+        // fire_fireball / water_bolt / earth_rock_throw share a similar text structure
+        return String.format(
+                com.example.rpg.config.RpgLocale.get("upgrade.rock_fire_water"),
+                getPower(currentLevel, data), getPower(currentLevel + 1, data),
+                getCooldownSeconds(currentLevel, data), getCooldownSeconds(currentLevel + 1, data));
     }
 
     @Override
@@ -54,7 +57,17 @@ public class FireballAbility extends MagicAbility {
 
         fireball.setPosition(pos.x + look.x * 0.5, pos.y, pos.z + look.z * 0.5);
 
-        double speed = getPower(skillLevel);
+        PlayerStatsData data = RpgWorldData.get(player.getServer()).getPlayerData(player.getUuid());
+        // Note: SmallFireballEntity does not have a direct setDamage method.
+        // If you intend to modify its damage, you might need a custom entity or a
+        // different approach.
+        // For now, assuming 'projectile' was a placeholder for 'fireball' and
+        // 'setDamage' is a conceptual method.
+        // If SmallFireballEntity is extended or wrapped, this line might become valid.
+        // fireball.setDamage(getPower(skillLevel, data)); // This line is commented out
+        // as SmallFireballEntity doesn't have setDamage
+
+        double speed = getPower(skillLevel, data); // Use the overloaded getPower with data
         fireball.setVelocity(look.x * speed, look.y * speed, look.z * speed);
 
         player.getWorld().spawnEntity(fireball);

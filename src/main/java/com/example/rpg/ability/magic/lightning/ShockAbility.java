@@ -29,24 +29,22 @@ public class ShockAbility extends MagicAbility {
     }
 
     @Override
-    public float getPower(int level) {
+    public float getPower(int level, com.example.rpg.stats.PlayerStatsData data) {
         return level < 3 ? 0.0f : 5.0f; // Vanilla lightning deals 5 damage
     }
 
     @Override
-    public String getUpgradeDescription(int currentLevel) {
+    public String getUpgradeDescription(int currentLevel, com.example.rpg.stats.PlayerStatsData data) {
         if (currentLevel == 0) {
-            return com.example.rpg.config.RpgLocale.get("upgrade.unlock_ability")
-                    + com.example.rpg.config.RpgLocale.getSkillName(getId());
+            return com.example.rpg.config.RpgLocale.get("upgrade.unlock_general");
         }
         if (currentLevel >= getMaxLevel()) {
             return com.example.rpg.config.RpgLocale.get("upgrade.max_level");
         }
-        if (currentLevel == 1) {
-            return com.example.rpg.config.RpgLocale.get("upgrade.shock_lvl2");
-        }
-        return String.format(com.example.rpg.config.RpgLocale.get("upgrade.shock"),
-                getCooldownSeconds(currentLevel), getCooldownSeconds(currentLevel + 1));
+        return String.format(
+                com.example.rpg.config.RpgLocale.get("upgrade.rock_fire_water"),
+                getPower(currentLevel, data), getPower(currentLevel + 1, data),
+                getCooldownSeconds(currentLevel, data), getCooldownSeconds(currentLevel + 1, data));
     }
 
     @Override

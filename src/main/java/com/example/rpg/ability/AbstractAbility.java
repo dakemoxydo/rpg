@@ -55,25 +55,37 @@ public abstract class AbstractAbility implements IAbility {
     }
 
     @Override
-    public int getCooldownSeconds(int level) {
+    public int getCooldownSeconds(int level, com.example.rpg.stats.PlayerStatsData data) {
         // По умолчанию кулдаун снижается на 0.5с за каждый уровень после первого
         return Math.max(1, cooldownSeconds - (int) ((level - 1) * 0.5));
     }
 
     @Override
-    public int getCooldownTicks(int level) {
-        return getCooldownSeconds(level) * 20;
+    public int getCooldownTicks(int level, com.example.rpg.stats.PlayerStatsData data) {
+        return getCooldownSeconds(level, data) * 20;
     }
 
     @Override
-    public float getPower(int level) {
+    public float getPower(int level, com.example.rpg.stats.PlayerStatsData data) {
         // Базовая логика для силы, если дочерний класс не переопределил.
         // Скажем, 5 + уровень * 2
-        return 5.0f + level * 2.0f;
+        float basePower = 5.0f + level * 2.0f;
+
+        if (data != null) {
+            if (usesStamina) {
+                // Physical skills scale with Strength
+                basePower += data.getStatLevel(com.example.rpg.stats.StatRegistry.STRENGTH) * 0.5f;
+            } else {
+                // Magic skills scale with Magic Power
+                basePower += data.getStatLevel(com.example.rpg.stats.StatRegistry.MAGIC_POWER) * 0.5f;
+            }
+        }
+
+        return basePower;
     }
 
     @Override
-    public String getUpgradeDescription(int currentLevel) {
+    public String getUpgradeDescription(int currentLevel, com.example.rpg.stats.PlayerStatsData data) {
         if (currentLevel == 0) {
             return com.example.rpg.config.RpgLocale.get("upgrade.unlock_general");
         }

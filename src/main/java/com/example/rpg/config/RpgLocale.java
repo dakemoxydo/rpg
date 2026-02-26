@@ -21,6 +21,7 @@ public class RpgLocale {
 
             // Tabs
             case "tab.stats" -> ru ? "Статы" : "Stats";
+            case "tab.build" -> ru ? "Билд" : "Build";
             case "tab.skills" -> ru ? "Навыки" : "Skills";
             case "tab.magic" -> ru ? "Магия" : "Magic";
 
@@ -59,6 +60,10 @@ public class RpgLocale {
             // Stats
             case "stat.health" -> ru ? "Здоровье" : "Health";
             case "stat.strength" -> ru ? "Сила" : "Strength";
+            case "stat.dexterity" -> ru ? "Ловкость" : "Dexterity";
+            case "stat.vitality" -> ru ? "Живучесть" : "Vitality";
+            case "stat.intelligence" -> ru ? "Интеллект" : "Intelligence";
+            case "stat.magic_power" -> ru ? "Маг. Сила" : "Magic Power";
             case "stat.speed" -> ru ? "Скорость" : "Speed";
             case "stat.jump" -> ru ? "Прыжок" : "Jump";
             case "stat.mana" -> ru ? "Мана" : "Mana";
@@ -66,6 +71,18 @@ public class RpgLocale {
             case "stat.fortune" -> ru ? "Удача" : "Fortune";
             case "stat.looting" -> ru ? "Добыча" : "Looting";
             case "stat.max" -> "MAX";
+
+            // Final Stats
+            case "stat.final.title" -> ru ? "Итоговые Статы" : "Final Stats";
+            case "stat.final.health" -> ru ? "Макс. Здоровье: " : "Max Health: ";
+            case "stat.final.defense" -> ru ? "Защита: " : "Defense: ";
+            case "stat.final.melee" -> ru ? "Урон (Ближний): " : "Melee Damage: ";
+            case "stat.final.magic" -> ru ? "Маг. Сила: " : "Magic Power: ";
+            case "stat.final.mana" -> ru ? "Макс. Мана: " : "Max Mana: ";
+            case "stat.final.mana_regen" -> ru ? "Реген Маны: " : "Mana Regen: ";
+            case "stat.final.stamina" -> ru ? "Макс. Стамина: " : "Max Stamina: ";
+            case "stat.final.stamina_regen" -> ru ? "Реген Стамины: " : "Stamina Regen: ";
+            case "stat.final.regen_sec" -> ru ? "/с" : "/s";
 
             // Abilities (Physical/Support)
             case "ability.dash" -> ru ? "Рывок" : "Dash";
@@ -169,6 +186,13 @@ public class RpgLocale {
         };
     }
 
+    public static String getOrDefault(String key, String defaultStr) {
+        String result = get(key);
+        if (result.equals(key))
+            return defaultStr;
+        return result;
+    }
+
     // ==================== XP SOURCES ====================
 
     public static String getXpSource(String sourceId) {
@@ -176,83 +200,14 @@ public class RpgLocale {
             return "";
 
         boolean ru = isPlayerRussian();
-        String lowerSource = sourceId.toLowerCase();
 
-        return switch (lowerSource) {
-            // Ores
-            case "coal" -> ru ? "Уголь" : "Coal";
-            case "iron" -> ru ? "Железо" : "Iron";
-            case "copper" -> ru ? "Медь" : "Copper";
-            case "gold" -> ru ? "Золото" : "Gold";
-            case "lapis" -> ru ? "Лазурит" : "Lapis";
-            case "redstone" -> ru ? "Редстоун" : "Redstone";
-            case "diamond" -> ru ? "Алмаз" : "Diamond";
-            case "emerald" -> ru ? "Изумруд" : "Emerald";
-            case "quartz" -> ru ? "Кварц" : "Quartz";
-            case "nether_gold" -> ru ? "Незер. золото" : "Nether Gold";
-            case "ancient_debris" -> ru ? "Древние обломки" : "Ancient Debris";
+        // Specific overrides for missing or generic things
+        if (sourceId.equals("rpg.xp.source.command")) {
+            return ru ? "Команда" : "Command";
+        }
 
-            // Bosses
-            case "ender_dragon" -> ru ? "Дракон Края" : "Ender Dragon";
-            case "wither" -> ru ? "Визер" : "Wither";
-            case "elder_guardian" -> ru ? "Древний страж" : "Elder Guardian";
-            case "warden" -> ru ? "Хранитель" : "Warden";
-
-            // Mobs
-            case "zombie" -> ru ? "Зомби" : "Zombie";
-            case "skeleton" -> ru ? "Скелет" : "Skeleton";
-            case "creeper" -> ru ? "Крипер" : "Creeper";
-            case "spider" -> ru ? "Паук" : "Spider";
-            case "cave_spider" -> ru ? "Пещерный паук" : "Cave Spider";
-            case "enderman" -> ru ? "Эндермен" : "Enderman";
-            case "blaze" -> ru ? "Ифрит" : "Blaze";
-            case "ghast" -> ru ? "Гаст" : "Ghast";
-            case "magma_cube" -> ru ? "Магмовый куб" : "Magma Cube";
-            case "slime" -> ru ? "Слизень" : "Slime";
-            case "witch" -> ru ? "Ведьма" : "Witch";
-            case "phantom" -> ru ? "Фантом" : "Phantom";
-            case "drowned" -> ru ? "Утопленник" : "Drowned";
-            case "husk" -> ru ? "Кадавр" : "Husk";
-            case "stray" -> ru ? "Зимогор" : "Stray";
-            case "piglin" -> ru ? "Пиглин" : "Piglin";
-            case "zombified_piglin" -> ru ? "Зомби-пиглин" : "Zombified Piglin";
-            case "hoglin" -> ru ? "Хоглин" : "Hoglin";
-            case "pillager" -> ru ? "Разбойник" : "Pillager";
-            case "ravager" -> ru ? "Разоритель" : "Ravager";
-            case "evoker" -> ru ? "Вызыватель" : "Evoker";
-            case "vindicator" -> ru ? "Поборник" : "Vindicator";
-            case "wither_skeleton" -> ru ? "Скелет-визер" : "Wither Skeleton";
-            case "guardian" -> ru ? "Страж" : "Guardian";
-            case "shulker" -> ru ? "Шалкер" : "Shulker";
-            case "silverfish" -> ru ? "Чешуйница" : "Silverfish";
-            case "endermite" -> ru ? "Эндермит" : "Endermite";
-            case "vex" -> ru ? "Вредина" : "Vex";
-
-            // Animals
-            case "pig" -> ru ? "Свинья" : "Pig";
-            case "cow" -> ru ? "Корова" : "Cow";
-            case "sheep" -> ru ? "Овца" : "Sheep";
-            case "chicken" -> ru ? "Курица" : "Chicken";
-            case "rabbit" -> ru ? "Кролик" : "Rabbit";
-            case "horse" -> ru ? "Лошадь" : "Horse";
-            case "wolf" -> ru ? "Волк" : "Wolf";
-            case "fox" -> ru ? "Лиса" : "Fox";
-            case "cat" -> ru ? "Кошка" : "Cat";
-            case "bee" -> ru ? "Пчела" : "Bee";
-            case "polar_bear" -> ru ? "Белый медведь" : "Polar Bear";
-            case "llama" -> ru ? "Лама" : "Llama";
-            case "panda" -> ru ? "Панда" : "Panda";
-            case "goat" -> ru ? "Коза" : "Goat";
-            case "axolotl" -> ru ? "Аксолотль" : "Axolotl";
-            case "iron_golem" -> ru ? "Железный голем" : "Iron Golem";
-            case "snow_golem" -> ru ? "Снежный голем" : "Snow Golem";
-            case "villager" -> ru ? "Житель" : "Villager";
-
-            // System
-            case "command" -> ru ? "Команда" : "Command";
-
-            default -> sourceId;
-        };
+        // Native translation fallback
+        return net.minecraft.text.Text.translatable(sourceId).getString();
     }
 
     // ==================== HELPERS ====================
@@ -283,6 +238,10 @@ public class RpgLocale {
         return switch (statId.toUpperCase()) {
             case "HEALTH" -> get("stat.health");
             case "STRENGTH" -> get("stat.strength");
+            case "DEXTERITY" -> get("stat.dexterity");
+            case "VITALITY" -> get("stat.vitality");
+            case "INTELLIGENCE" -> get("stat.intelligence");
+            case "MAGIC_POWER" -> get("stat.magic_power");
             case "SPEED" -> get("stat.speed");
             case "JUMP" -> get("stat.jump");
             case "MANA" -> get("stat.mana");

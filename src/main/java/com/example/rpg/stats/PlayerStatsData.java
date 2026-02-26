@@ -8,7 +8,7 @@ import java.util.Map;
 
 public class PlayerStatsData {
 
-    private final Map<StatType, Integer> statLevels = new HashMap<>();
+    private final Map<String, Integer> statLevels = new HashMap<>();
 
     /**
      * Единая карта уровней всех способностей (физических и магических).
@@ -31,8 +31,8 @@ public class PlayerStatsData {
     private final Map<String, Integer> keybinds = new HashMap<>();
 
     public PlayerStatsData() {
-        for (StatType stat : StatType.values()) {
-            statLevels.put(stat, 0);
+        for (AttributeStat stat : StatRegistry.getAll()) {
+            statLevels.put(stat.getId(), 0);
         }
     }
 
@@ -174,28 +174,35 @@ public class PlayerStatsData {
 
     // --- Статы ---
 
-    public int getStatLevel(StatType stat) {
-        return statLevels.getOrDefault(stat, 0);
+    public int getStatLevel(String statId) {
+        return statLevels.getOrDefault(statId, 0);
     }
 
-    public boolean canUpgrade(StatType stat) {
-        int currentLvl = getStatLevel(stat);
+    public boolean canUpgrade(String statId) {
+        AttributeStat stat = StatRegistry.get(statId);
+        if (stat == null)
+            return false;
+        int currentLvl = getStatLevel(statId);
         return currentLvl < stat.getMaxLevel() && skillPoints >= stat.getCostPerPoint();
     }
 
-    public boolean upgradeStat(StatType stat) {
-        if (!canUpgrade(stat))
+    public boolean upgradeStat(String statId) {
+        AttributeStat stat = StatRegistry.get(statId);
+        if (stat == null || !canUpgrade(statId))
             return false;
         skillPoints -= stat.getCostPerPoint();
-        statLevels.put(stat, getStatLevel(stat) + 1);
+        statLevels.put(statId, getStatLevel(statId) + 1);
         return true;
     }
 
-    public void setStatLevel(StatType stat, int level) {
-        statLevels.put(stat, Math.min(level, stat.getMaxLevel()));
-        if (stat == StatType.MANA) {
+    public void setStatLevel(String statId, int level) {
+        AttributeStat stat = StatRegistry.get(statId);
+        if (stat == null)
+            return;
+        statLevels.put(statId, Math.min(level, stat.getMaxLevel()));
+        if (StatRegistry.INTELLIGENCE.equals(statId)) {
             currentMana = Math.min(currentMana, getMaxMana());
-        } else if (stat == StatType.STAMINA) {
+        } else if (StatRegistry.DEXTERITY.equals(statId)) {
             currentStamina = Math.min(currentStamina, getMaxStamina());
         }
     }
@@ -203,8 +210,10 @@ public class PlayerStatsData {
     // --- Мана ---
 
     public int getMaxMana() {
-        int level = getStatLevel(StatType.MANA);
-        return (int) StatType.MANA.getValueAtLevel(level);
+        AttributeStat intel = StatRegistry.get(StatRegistry.INTELLIGENCE);
+        if (intel == null)
+            return 100;
+        return (int) intel.getValueAtLevel(getStatLevel(StatRegistry.INTELLIGENCE));
     }
 
     public float getCurrentMana() {
@@ -216,8 +225,10 @@ public class PlayerStatsData {
     }
 
     public float getManaRegenPerSecond() {
-        int level = getStatLevel(StatType.MANA);
-        return (float) StatType.MANA.getRegenAtLevel(level);
+        AttributeStat intel = StatRegistry.get(StatRegistry.INTELLIGENCE);
+        if (intel == null)
+            return 2.0f;
+        return (float) intel.getRegenAtLevel(getStatLevel(StatRegistry.INTELLIGENCE));
     }
 
     public boolean useMana(int amount) {
@@ -242,8 +253,10 @@ public class PlayerStatsData {
     // --- Стамина ---
 
     public int getMaxStamina() {
-        int level = getStatLevel(StatType.STAMINA);
-        return (int) StatType.STAMINA.getValueAtLevel(level);
+        AttributeStat dex = StatRegistry.get(StatRegistry.DEXTERITY);
+        if (dex == null)
+            return 100;
+        return (int) dex.getValueAtLevel(getStatLevel(StatRegistry.DEXTERITY));
     }
 
     public float getCurrentStamina() {
@@ -255,8 +268,10 @@ public class PlayerStatsData {
     }
 
     public float getStaminaRegenPerSecond() {
-        int level = getStatLevel(StatType.STAMINA);
-        return (float) StatType.STAMINA.getRegenAtLevel(level);
+        AttributeStat dex = StatRegistry.get(StatRegistry.DEXTERITY);
+        if (dex == null)
+            return 5.0f;
+        return (float) dex.getRegenAtLevel(getStatLevel(StatRegistry.DEXTERITY));
     }
 
     public boolean useStamina(int amount) {
@@ -276,6 +291,40 @@ public class PlayerStatsData {
         if (max <= 0)
             return 0;
         return getCurrentStamina() / max;
+    }
+
+    // --- Здоровье (Конституция/Живучесть) ---
+    public float getMaxHealthBonus() {
+        AttributeStat vit = StatRegistry.get(StatRegistry.VITALITY);
+        if (vit == null)
+            return 0f;
+        return (float) vit.getValueAtLevel(getStatLevel(StatRegistry.VITALITY)) - (float) vit.getBaseValue(); // Only
+                                                                                                              // bonus
+                                                                                                              // goes to
+                                                                                                              // max
+                                                                                                              // health
+    }
+
+    public float getDefenseReduction() {
+        AttributeStat vit = StatRegistry.get(StatRegistry.VITALITY);
+        if (vit == null)
+            return 0f;
+        return Math.min(0.60f, (getStatLevel(StatRegistry.VITALITY) / 10.0f) * 0.05f);
+    }
+
+    // --- Урон ---
+    public float getMeleeDamageBonus() {
+        AttributeStat str = StatRegistry.get(StatRegistry.STRENGTH);
+        if (str == null)
+            return 0f;
+        return (float) str.getValueAtLevel(getStatLevel(StatRegistry.STRENGTH)) - (float) str.getBaseValue();
+    }
+
+    public float getMagicDamageBonus() {
+        AttributeStat mag = StatRegistry.get(StatRegistry.MAGIC_POWER);
+        if (mag == null)
+            return 0f;
+        return (float) mag.getValueAtLevel(getStatLevel(StatRegistry.MAGIC_POWER)) - (float) mag.getBaseValue();
     }
 
     // --- XP и уровни ---
@@ -342,15 +391,17 @@ public class PlayerStatsData {
         skillPoints = 0;
         currentMana = 100;
         currentStamina = 100;
-        for (StatType stat : StatType.values()) {
-            statLevels.put(stat, 0);
+        statLevels.clear();
+        for (AttributeStat stat : StatRegistry.getAll()) {
+            statLevels.put(stat.getId(), 0);
         }
         skillLevels.clear();
     }
 
     public void resetStats() {
-        for (StatType stat : StatType.values()) {
-            statLevels.put(stat, 0);
+        statLevels.clear();
+        for (AttributeStat stat : StatRegistry.getAll()) {
+            statLevels.put(stat.getId(), 0);
         }
         // При сбросе статов обнуляем только физические скиллы
         skillLevels.entrySet().removeIf(entry -> AbilityRegistry.getMagicAbility(entry.getKey()) == null);
@@ -360,8 +411,8 @@ public class PlayerStatsData {
 
     public int getSpentPoints() {
         int spent = 0;
-        for (StatType stat : StatType.values()) {
-            spent += getStatLevel(stat) * stat.getCostPerPoint();
+        for (AttributeStat stat : StatRegistry.getAll()) {
+            spent += getStatLevel(stat.getId()) * stat.getCostPerPoint();
         }
         // Считаем только физические скиллы при сбросе статов
         for (Map.Entry<String, Integer> entry : skillLevels.entrySet()) {
@@ -389,10 +440,10 @@ public class PlayerStatsData {
         nbt.putString("element", element.name());
 
         NbtCompound statsNbt = new NbtCompound();
-        for (StatType stat : StatType.values()) {
-            statsNbt.putInt(stat.name(), getStatLevel(stat));
+        for (Map.Entry<String, Integer> entry : statLevels.entrySet()) {
+            statsNbt.putInt(entry.getKey(), entry.getValue());
         }
-        nbt.put("stats", statsNbt);
+        nbt.put("statsV2", statsNbt); // Using new key to avoid conflicts
 
         NbtCompound skillsNbt = new NbtCompound();
         for (Map.Entry<String, Integer> entry : skillLevels.entrySet()) {
@@ -432,11 +483,29 @@ public class PlayerStatsData {
             }
         }
 
-        NbtCompound statsNbt = nbt.getCompound("stats");
-        for (StatType stat : StatType.values()) {
-            if (statsNbt.contains(stat.name())) {
-                data.statLevels.put(stat, statsNbt.getInt(stat.name()));
+        // New format
+        if (nbt.contains("statsV2")) {
+            NbtCompound statsNbt = nbt.getCompound("statsV2");
+            for (String key : statsNbt.getKeys()) {
+                data.statLevels.put(key, statsNbt.getInt(key));
             }
+        }
+        // Migrate old format
+        else if (nbt.contains("stats")) {
+            NbtCompound oldStatsNbt = nbt.getCompound("stats");
+            if (oldStatsNbt.contains("HEALTH"))
+                data.statLevels.put(StatRegistry.VITALITY, oldStatsNbt.getInt("HEALTH"));
+            if (oldStatsNbt.contains("STRENGTH"))
+                data.statLevels.put(StatRegistry.STRENGTH, oldStatsNbt.getInt("STRENGTH"));
+            if (oldStatsNbt.contains("MANA"))
+                data.statLevels.put(StatRegistry.INTELLIGENCE, oldStatsNbt.getInt("MANA"));
+            if (oldStatsNbt.contains("STAMINA"))
+                data.statLevels.put(StatRegistry.DEXTERITY, oldStatsNbt.getInt("STAMINA"));
+        }
+
+        // Ensure all stats are present in map
+        for (AttributeStat stat : StatRegistry.getAll()) {
+            data.statLevels.putIfAbsent(stat.getId(), 0);
         }
 
         // Единая карта "skills"

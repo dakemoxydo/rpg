@@ -31,6 +31,8 @@ public class StatsNetworking {
     private static final Identifier SYNC_RESOURCES = new Identifier("rpg", "sync_resources");
     private static final Identifier LEVEL_UP = new Identifier("rpg", "level_up");
     private static final Identifier XP_POPUP = new Identifier("rpg", "xp_popup");
+    private static final Identifier SPAWN_DAMAGE_TEXT = new Identifier("rpg", "spawn_damage_text");
+    private static final Identifier ADD_COMBO_DAMAGE = new Identifier("rpg", "add_combo_damage");
     private static final Identifier RESET_STATS = new Identifier("rpg", "reset_stats");
     private static final Identifier USE_ABILITY = new Identifier("rpg", "use_ability");
     private static final Identifier UPGRADE_ABILITY = new Identifier("rpg", "upgrade_ability");
@@ -45,14 +47,16 @@ public class StatsNetworking {
     public static void registerServerHandlers() {
         // -- Upgrade Stat --
         ServerPlayNetworking.registerGlobalReceiver(UPGRADE_STAT, (server, player, handler, buf, responseSender) -> {
-            String statName = buf.readString();
+            String statId = buf.readString();
             server.execute(() -> {
-                StatType stat = parseStatType(statName);
-                if (stat == null)
+                AttributeStat stat = StatRegistry.get(statId);
+                if (stat == null) {
+                    LOGGER.warn("Unknown stat: {}", statId);
                     return;
+                }
                 RpgWorldData worldData = RpgWorldData.get(player.getServer());
                 PlayerStatsData data = worldData.getPlayerData(player.getUuid());
-                if (data.upgradeStat(stat)) {
+                if (data.upgradeStat(statId)) {
                     worldData.markDirty();
                     StatsManager.applyStats(player, data);
                     syncToClient(player);
@@ -196,10 +200,10 @@ public class StatsNetworking {
         ability.execute(player, level);
 
         // Ставим КД и сохраняем
-        AbilityCooldownManager.setCooldown(player.getUuid(), abilityId, ability.getCooldownTicks(level));
+        AbilityCooldownManager.setCooldown(player.getUuid(), abilityId, ability.getCooldownTicks(level, data));
         worldData.markDirty();
         syncResources(player);
-        syncCooldown(player, abilityId, ability.getCooldownTicks(level));
+        syncCooldown(player, abilityId, ability.getCooldownTicks(level, data));
     }
 
     /**
@@ -274,6 +278,21 @@ public class StatsNetworking {
             client.execute(() -> RpgHudRenderer.addXpPopup(amount, source));
         });
 
+        // Damage Text
+        ClientPlayNetworking.registerGlobalReceiver(SPAWN_DAMAGE_TEXT, (client, handler, buf, responseSender) -> {
+            double x = buf.readDouble();
+            double y = buf.readDouble();
+            double z = buf.readDouble();
+            float amount = buf.readFloat();
+            client.execute(() -> com.example.rpg.effect.DamageTextManager.spawnDamageText(x, y, z, amount));
+        });
+
+        // Add Combo Damage
+        ClientPlayNetworking.registerGlobalReceiver(ADD_COMBO_DAMAGE, (client, handler, buf, responseSender) -> {
+            float amount = buf.readFloat();
+            client.execute(() -> RpgHudRenderer.addComboDamage(amount));
+        });
+
         // Sync Cooldown
         ClientPlayNetworking.registerGlobalReceiver(SYNC_COOLDOWN, (client, handler, buf, responseSender) -> {
             String abilityId = buf.readString();
@@ -296,9 +315,9 @@ public class StatsNetworking {
     // ==================== CLIENT → SERVER SENDERS ====================
 
     /** Отправить запрос на прокачку стата */
-    public static void sendUpgradeRequest(StatType stat) {
+    public static void sendUpgradeRequest(String statId) {
         PacketByteBuf buf = PacketByteBufs.create();
-        buf.writeString(stat.name());
+        buf.writeString(statId);
         ClientPlayNetworking.send(UPGRADE_STAT, buf);
     }
 
@@ -379,6 +398,23 @@ public class StatsNetworking {
         ServerPlayNetworking.send(player, XP_POPUP, buf);
     }
 
+    /** Текст урона */
+    public static void sendDamageText(ServerPlayerEntity player, double x, double y, double z, float amount) {
+        PacketByteBuf buf = PacketByteBufs.create();
+        buf.writeDouble(x);
+        buf.writeDouble(y);
+        buf.writeDouble(z);
+        buf.writeFloat(amount);
+        ServerPlayNetworking.send(player, SPAWN_DAMAGE_TEXT, buf);
+    }
+
+    /** Комбо урон */
+    public static void sendComboDamage(ServerPlayerEntity player, float amount) {
+        PacketByteBuf buf = PacketByteBufs.create();
+        buf.writeFloat(amount);
+        ServerPlayNetworking.send(player, ADD_COMBO_DAMAGE, buf);
+    }
+
     /** Синхронизация кулдауна */
     public static void syncCooldown(ServerPlayerEntity player, String abilityId, int ticks) {
         PacketByteBuf buf = PacketByteBufs.create();
@@ -393,13 +429,5 @@ public class StatsNetworking {
     }
 
     // ==================== HELPERS ====================
-
-    private static StatType parseStatType(String name) {
-        try {
-            return StatType.valueOf(name);
-        } catch (Exception e) {
-            LOGGER.warn("Unknown stat: {}", name);
-            return null;
-        }
-    }
+    // parseStatType removed since we now use StatRegistry string IDs
 }

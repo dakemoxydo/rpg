@@ -101,8 +101,8 @@ public class RpgCommands {
                                                                                                 data.getSkillPoints())),
                                                                                 false);
 
-                                                                for (StatType stat : StatType.values()) {
-                                                                        int lvl = data.getStatLevel(stat);
+                                                                for (AttributeStat stat : StatRegistry.getAll()) {
+                                                                        int lvl = data.getStatLevel(stat.getId());
                                                                         String line = String.format(
                                                                                         "§a%s§7: §f%d/%d §7(cost: %d pts)",
                                                                                         stat.getDisplayName(), lvl,
@@ -222,15 +222,8 @@ public class RpgCommands {
                                                                                                                 .getInteger(context,
                                                                                                                                 "level");
 
-                                                                                                StatType stat = null;
-                                                                                                for (StatType s : StatType
-                                                                                                                .values()) {
-                                                                                                        if (s.name().equalsIgnoreCase(
-                                                                                                                        statName)) {
-                                                                                                                stat = s;
-                                                                                                                break;
-                                                                                                        }
-                                                                                                }
+                                                                                                AttributeStat stat = StatRegistry
+                                                                                                                .get(statName);
 
                                                                                                 if (stat == null) {
                                                                                                         context.getSource()
@@ -248,7 +241,8 @@ public class RpgCommands {
                                                                                                                 .getPlayerData(player
                                                                                                                                 .getUuid());
 
-                                                                                                data.setStatLevel(stat,
+                                                                                                data.setStatLevel(stat
+                                                                                                                .getId(),
                                                                                                                 level);
                                                                                                 worldData.markDirty();
                                                                                                 StatsManager.applyStats(
@@ -257,10 +251,9 @@ public class RpgCommands {
                                                                                                 StatsNetworking.syncToClient(
                                                                                                                 player);
 
-                                                                                                StatType finalStat = stat;
                                                                                                 context.getSource()
                                                                                                                 .sendFeedback(() -> Text
-                                                                                                                                .literal("§a" + finalStat
+                                                                                                                                .literal("§a" + stat
                                                                                                                                                 .getDisplayName()
                                                                                                                                                 +
                                                                                                                                                 " set to level §e"
@@ -305,9 +298,9 @@ public class RpgCommands {
                                                                 context.getSource().sendFeedback(() -> Text
                                                                                 .literal("§6§l=== Available Stats ==="),
                                                                                 false);
-                                                                for (StatType stat : StatType.values()) {
+                                                                for (AttributeStat stat : StatRegistry.getAll()) {
                                                                         context.getSource().sendFeedback(() -> Text
-                                                                                        .literal("§e" + stat.name()
+                                                                                        .literal("§e" + stat.getId()
                                                                                                         + " §7- " +
                                                                                                         stat.getDisplayName()
                                                                                                         + " (max: " +

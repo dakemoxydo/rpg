@@ -8,6 +8,9 @@ import net.minecraft.particle.ParticleTypes;
 import net.minecraft.server.world.ServerWorld;
 import org.lwjgl.glfw.GLFW;
 
+import com.example.rpg.stats.PlayerStatsData;
+import com.example.rpg.stats.RpgWorldData;
+
 public class HealAbility extends Ability {
 
     public HealAbility() {
@@ -23,34 +26,52 @@ public class HealAbility extends Ability {
     }
 
     @Override
-    public float getPower(int level) {
-        return 4.0f + (Math.max(1, level) * 2.0f);
+    public float getPower(int level, com.example.rpg.stats.PlayerStatsData data) {
+        return super.getPower(level, data);
+    }
+
+    // getCooldownSeconds and getCooldownTicks are not present in the original code,
+    // but the instruction implies they should be modified if they were.
+    // Assuming they are inherited from Ability and need to be overridden with
+    // PlayerStatsData.
+    @Override
+    public int getCooldownSeconds(int level, PlayerStatsData data) {
+        return super.getCooldownSeconds(level, data);
     }
 
     @Override
-    public String getUpgradeDescription(int currentLevel) {
+    public int getCooldownTicks(int level, PlayerStatsData data) {
+        return super.getCooldownTicks(level, data);
+    }
+
+    @Override
+    public String getUpgradeDescription(int currentLevel, com.example.rpg.stats.PlayerStatsData data) {
         if (currentLevel == 0) {
-            return com.example.rpg.config.RpgLocale.get("upgrade.unlock_ability")
-                    + com.example.rpg.config.RpgLocale.getAbilityName(getId());
+            return com.example.rpg.config.RpgLocale.get("upgrade.unlock_general");
         }
         if (currentLevel >= getMaxLevel()) {
             return com.example.rpg.config.RpgLocale.get("upgrade.max_level");
         }
+        // getUpgradeDescription gets PlayerStatsData to correctly preview scaling
+        // values
         return String.format(com.example.rpg.config.RpgLocale.get("upgrade.heal"),
-                getPower(currentLevel), getPower(currentLevel + 1),
-                getCooldownSeconds(currentLevel), getCooldownSeconds(currentLevel + 1));
+                getPower(currentLevel, data), getPower(currentLevel + 1, data),
+                getCooldownSeconds(currentLevel, data), getCooldownSeconds(currentLevel + 1, data));
     }
 
     @Override
-    public void execute(ServerPlayerEntity player, int abilityLevel) {
-        float healAmount = getPower(abilityLevel);
+    public void execute(ServerPlayerEntity player, int level) {
+        // У Healing нет снаряда/Raycast, он лечит сразу
+        PlayerStatsData data = RpgWorldData.get(player.getServer()).getPlayerData(player.getUuid());
+        float healAmount = getPower(level, data);
+
         player.heal(healAmount);
 
         ServerWorld world = (ServerWorld) player.getWorld();
         world.spawnParticles(
                 ParticleTypes.HEART,
                 player.getX(), player.getY() + 1, player.getZ(),
-                5 + abilityLevel * 2,
+                5 + level * 2,
                 0.5, 0.5, 0.5,
                 0.1);
 

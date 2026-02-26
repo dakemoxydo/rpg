@@ -29,6 +29,7 @@ public class RpgClient implements ClientModInitializer {
 
         // HUD
         RpgHudRenderer.register();
+        com.example.rpg.effect.DamageTextManager.register();
 
         // Кнопка открытия меню
         openMenuKey = new KeyBinding("key.rpg.menu", InputUtil.Type.KEYSYM,

@@ -2,6 +2,8 @@ package com.example.rpg.ability.magic.earth;
 
 import com.example.rpg.ability.magic.MagicAbility;
 import com.example.rpg.stats.MagicElement;
+import com.example.rpg.stats.PlayerStatsData;
+import com.example.rpg.stats.RpgWorldData;
 import net.minecraft.block.Blocks;
 import net.minecraft.entity.FallingBlockEntity;
 import net.minecraft.particle.BlockStateParticleEffect;
@@ -27,22 +29,22 @@ public class RockThrowAbility extends MagicAbility {
     }
 
     @Override
-    public float getPower(int level) {
+    public float getPower(int level, com.example.rpg.stats.PlayerStatsData data) {
         return 10.0f + (Math.max(1, level) * 5.0f);
     }
 
     @Override
-    public String getUpgradeDescription(int currentLevel) {
+    public String getUpgradeDescription(int currentLevel, com.example.rpg.stats.PlayerStatsData data) {
         if (currentLevel == 0) {
-            return com.example.rpg.config.RpgLocale.get("upgrade.unlock_ability")
-                    + com.example.rpg.config.RpgLocale.getSkillName(getId());
+            return com.example.rpg.config.RpgLocale.get("upgrade.unlock_general");
         }
         if (currentLevel >= getMaxLevel()) {
             return com.example.rpg.config.RpgLocale.get("upgrade.max_level");
         }
-        return String.format(com.example.rpg.config.RpgLocale.get("upgrade.rock_throw"),
-                getPower(currentLevel), getPower(currentLevel + 1),
-                getCooldownSeconds(currentLevel), getCooldownSeconds(currentLevel + 1));
+        return String.format(
+                com.example.rpg.config.RpgLocale.get("upgrade.rock_fire_water"),
+                getPower(currentLevel, data), getPower(currentLevel + 1, data),
+                getCooldownSeconds(currentLevel, data), getCooldownSeconds(currentLevel + 1, data));
     }
 
     @Override
@@ -64,7 +66,8 @@ public class RockThrowAbility extends MagicAbility {
 
             // ИСПРАВЛЕНО: Аргументы (урон за блок падения, максимальный урон)
             // 2.0f урона за блок, макс урон зависит от уровня скилла
-            rock.setHurtEntities(2.0f, (int) getPower(skillLevel));
+            PlayerStatsData data = RpgWorldData.get(player.getServer()).getPlayerData(player.getUuid());
+            rock.setHurtEntities(2.0f, (int) getPower(skillLevel, data));
         }
 
         // Частицы земли

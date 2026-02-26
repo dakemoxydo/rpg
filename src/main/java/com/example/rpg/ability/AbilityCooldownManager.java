@@ -1,6 +1,8 @@
 package com.example.rpg.ability;
 
 import com.example.rpg.network.StatsNetworking;
+import com.example.rpg.stats.PlayerStatsData;
+import com.example.rpg.stats.RpgWorldData;
 
 import net.minecraft.server.network.ServerPlayerEntity;
 
@@ -32,14 +34,19 @@ public class AbilityCooldownManager {
         return getCooldown(playerId, abilityId) > 0;
     }
 
-    public static float getCooldownProgress(UUID playerId, String abilityId, int level) {
+    public static float getCooldownProgress(UUID playerId, String abilityId, int level, PlayerStatsData data) {
         IAbility ability = AbilityRegistry.get(abilityId);
         if (ability == null)
             return 0;
         int remaining = getCooldown(playerId, abilityId);
         if (remaining <= 0)
             return 0;
-        return (float) remaining / ability.getCooldownTicks(Math.max(1, level));
+        return (float) remaining / ability.getCooldownTicks(level, data);
+    }
+
+    public static float getCooldownProgress(UUID playerId, String abilityId, int level, ServerPlayerEntity player) {
+        PlayerStatsData data = RpgWorldData.get(player.getServer()).getPlayerData(player.getUuid());
+        return getCooldownProgress(playerId, abilityId, level, data);
     }
 
     public static void tick(UUID playerId) {

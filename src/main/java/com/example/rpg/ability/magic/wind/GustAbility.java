@@ -9,6 +9,8 @@ import net.minecraft.sound.SoundCategory;
 import net.minecraft.sound.SoundEvents;
 import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Vec3d;
+import com.example.rpg.stats.PlayerStatsData;
+import com.example.rpg.stats.RpgWorldData;
 import org.lwjgl.glfw.GLFW;
 
 public class GustAbility extends MagicAbility {
@@ -25,22 +27,36 @@ public class GustAbility extends MagicAbility {
     }
 
     @Override
-    public float getPower(int level) {
-        return (float) (1.0 + (Math.max(1, level) * 0.3));
+    public float getPower(int level, com.example.rpg.stats.PlayerStatsData data) {
+        float base = (float) (1.0 + (Math.max(1, level) * 0.3)); // Original calculation
+        if (data != null && data.getElement() == com.example.rpg.stats.MagicElement.WIND) {
+            base *= 1.2f;
+        }
+        return base;
     }
 
     @Override
-    public String getUpgradeDescription(int currentLevel) {
+    public int getCooldownSeconds(int level, com.example.rpg.stats.PlayerStatsData data) {
+        int base = super.getCooldownSeconds(level, data); // Assuming superclass has this signature or default
+                                                          // implementation
+        if (data != null && data.getElement() == com.example.rpg.stats.MagicElement.WIND) {
+            return Math.max(1, base - 1);
+        }
+        return base;
+    }
+
+    @Override
+    public String getUpgradeDescription(int currentLevel, com.example.rpg.stats.PlayerStatsData data) {
         if (currentLevel == 0) {
-            return com.example.rpg.config.RpgLocale.get("upgrade.unlock_ability")
-                    + com.example.rpg.config.RpgLocale.getSkillName(getId());
+            return com.example.rpg.config.RpgLocale.get("upgrade.unlock_general");
         }
         if (currentLevel >= getMaxLevel()) {
             return com.example.rpg.config.RpgLocale.get("upgrade.max_level");
         }
-        return String.format(com.example.rpg.config.RpgLocale.get("upgrade.gust"),
-                getPower(currentLevel), getPower(currentLevel + 1),
-                getCooldownSeconds(currentLevel), getCooldownSeconds(currentLevel + 1));
+        return String.format(
+                com.example.rpg.config.RpgLocale.get("upgrade.wind_gust"),
+                getPower(currentLevel, data), getPower(currentLevel + 1, data),
+                getCooldownSeconds(currentLevel, data), getCooldownSeconds(currentLevel + 1, data));
     }
 
     @Override
@@ -61,7 +77,8 @@ public class GustAbility extends MagicAbility {
 
         // Отталкиваем врагов
         double range = 4 + skillLevel;
-        double pushPower = getPower(skillLevel);
+        PlayerStatsData data = RpgWorldData.get(player.getServer()).getPlayerData(player.getUuid());
+        float pushPower = getPower(skillLevel, data);
         Box hitBox = new Box(playerPos, playerPos.add(look.multiply(range))).expand(2.0);
 
         world.getEntitiesByClass(net.minecraft.entity.LivingEntity.class, hitBox,

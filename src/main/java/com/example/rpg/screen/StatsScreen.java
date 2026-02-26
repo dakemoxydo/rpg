@@ -24,7 +24,7 @@ public class StatsScreen extends Screen {
     private int sidebarW;
 
     private enum Tab {
-        STATS, SKILLS, MAGIC
+        STATS, BUILD, SKILLS, MAGIC
     }
 
     private Tab currentTab = Tab.STATS;
@@ -121,8 +121,9 @@ public class StatsScreen extends Screen {
 
         // Tab buttons
         drawTab(context, Tab.STATS, RpgLocale.get("tab.stats"), 0, mouseX, mouseY, el);
-        drawTab(context, Tab.SKILLS, RpgLocale.get("tab.skills"), 1, mouseX, mouseY, el);
-        drawTab(context, Tab.MAGIC, RpgLocale.get("tab.magic"), 2, mouseX, mouseY, el);
+        drawTab(context, Tab.BUILD, RpgLocale.get("tab.build"), 1, mouseX, mouseY, el);
+        drawTab(context, Tab.SKILLS, RpgLocale.get("tab.skills"), 2, mouseX, mouseY, el);
+        drawTab(context, Tab.MAGIC, RpgLocale.get("tab.magic"), 3, mouseX, mouseY, el);
 
         // Close button (Top)
         int closeX = panelX + 6;
@@ -143,6 +144,7 @@ public class StatsScreen extends Screen {
         int titleColor = el != MagicElement.NONE ? el.textTitle : 0xFFFFD700;
         switch (currentTab) {
             case STATS -> renderStatsTab(context, mouseX, mouseY, el, titleColor);
+            case BUILD -> renderBuildTab(context, mouseX, mouseY, el, titleColor);
             case SKILLS -> renderSkillsTab(context, mouseX, mouseY, el, titleColor);
             case MAGIC -> renderMagicTab(context, mouseX, mouseY, el, titleColor);
         }
@@ -201,41 +203,49 @@ public class StatsScreen extends Screen {
         context.fillGradient(contentX + contentW - pad - barW / 2, sepY, contentX + contentW - pad, sepY + 1,
                 0x00000000, borderS);
 
-        // Stat rows
-        int startY = barY + (int) (18 * uiScale);
+        int columnsY = sepY + (int) (10 * uiScale);
+
+        // --- Left Column (Attributes) - Now takes full width ---
         int rowH = (int) (26 * uiScale);
         int btnSize = (int) (16 * uiScale);
+        int index = 0;
 
-        for (int i = 0; i < StatType.values().length; i++) {
-            StatType stat = StatType.values()[i];
-            int y = startY + i * rowH;
-            int level = cachedData.getStatLevel(stat);
+        for (AttributeStat stat : StatRegistry.getAll()) {
+            int y = columnsY + index * rowH;
+            int level = cachedData.getStatLevel(stat.getId());
             int statColor = stat.getColor(el);
 
             // Name
-            context.drawTextWithShadow(this.textRenderer, RpgLocale.get("stat." + stat.name().toLowerCase()),
+            String statName = RpgLocale.get("stat." + stat.getId());
+            context.drawTextWithShadow(this.textRenderer, statName,
                     cx, y + (rowH - textRenderer.fontHeight) / 2, 0xFFDDDDDD);
+
+            // Dynamically calculate the X offset for the value based on the name length
+            int nameWidth = this.textRenderer.getWidth(statName);
+            int baseOffset = (int) (70 * uiScale); // default spacing if text is short
+            int valX = cx + Math.max(baseOffset, nameWidth + (int) (5 * uiScale));
 
             // Value
             String val = String.valueOf(level);
-            int valX = cx + (int) (75 * uiScale);
             context.drawTextWithShadow(this.textRenderer, val,
                     valX, y + (rowH - textRenderer.fontHeight) / 2, statColor);
 
             // Progress bar
-            int pX = cx + (int) (95 * uiScale);
-            int pW = contentW - pad * 2 - (int) (130 * uiScale);
+            int valWidth = this.textRenderer.getWidth(val);
+            int pX = valX + valWidth + (int) (5 * uiScale);
+            int pW = barW - (pX - cx) - (btnSize + (int) (5 * uiScale)); // Fill remaining space up to button
             int pH = (int) (5 * uiScale);
             int pY = y + (rowH - pH) / 2;
             RenderUtils.drawProgressBar(context, pX, pY, pW, pH,
                     level / (float) stat.getMaxLevel(), statColor, RenderUtils.darken(statColor, 40), 0x44000000);
 
             // Upgrade button
-            int btnX = contentX + contentW - pad - btnSize;
+            int btnX = cx + barW - btnSize;
             int btnY = y + (rowH - btnSize) / 2;
-            boolean canUp = cachedData.canUpgrade(stat);
+            boolean canUp = cachedData.canUpgrade(stat.getId());
             RenderUtils.drawUpgradeButton(context, this.textRenderer, btnX, btnY, btnSize,
                     mouseX, mouseY, statColor, canUp);
+            index++;
         }
 
         // Reset button with confirmation state
@@ -249,6 +259,83 @@ public class StatsScreen extends Screen {
         RenderUtils.drawCustomButton(context, this.textRenderer,
                 cx, resetY, resetW, resetH, resetText,
                 mouseX, mouseY, resetBg, resetHover, 0xFFFF6666, 0xFF883333);
+    }
+
+    // ==================== BUILD TAB ====================
+
+    private void renderBuildTab(DrawContext context, int mouseX, int mouseY, MagicElement el, int titleColor) {
+        int pad = (int) (16 * uiScale);
+        int cx = contentX + pad;
+        int cy = contentY + pad;
+
+        // Header
+        String levelText = RpgLocale.get("menu.level") + " " + cachedData.getCurrentLevel();
+        context.drawTextWithShadow(this.textRenderer, levelText, cx, cy, titleColor);
+        String spText = "SP: " + cachedData.getSkillPoints();
+        context.drawTextWithShadow(this.textRenderer, spText,
+                contentX + contentW - pad - textRenderer.getWidth(spText), cy, 0xFF55FF55);
+
+        int barW = contentW - pad * 2;
+        int borderS = el != MagicElement.NONE ? el.borderSecondary : 0xFF333333;
+
+        int columnsY = cy + (int) (20 * uiScale);
+        int colW = barW;
+        int colX = cx;
+
+        // Title block for final stats
+        String finalTitle = RpgLocale.getOrDefault("stat.final.title", "Final Stats");
+        context.drawCenteredTextWithShadow(this.textRenderer, finalTitle,
+                colX + colW / 2, columnsY + (int) (4 * uiScale), 0xFFFFCC44);
+
+        int rSepY = columnsY + (int) (16 * uiScale);
+        context.fillGradient(colX, rSepY, colX + colW / 2, rSepY + 1, borderS, 0x00000000);
+        context.fillGradient(colX + colW / 2, rSepY, colX + colW, rSepY + 1, 0x00000000, borderS);
+
+        int fY = rSepY + (int) (8 * uiScale);
+        int fRowH = (int) (18 * uiScale);
+
+        // Casting to avoid verbosity in abstracting the runnable drawing
+        var drawStat = new Object() {
+            int currentY = fY;
+
+            void draw(String labelKey, String defaultLabel, String valueStr, int valColor) {
+                String label = RpgLocale.getOrDefault(labelKey, defaultLabel);
+                context.drawTextWithShadow(StatsScreen.this.textRenderer, label, colX + (int) (20 * uiScale), currentY,
+                        0xFFBBBBBB);
+                context.drawTextWithShadow(StatsScreen.this.textRenderer, valueStr,
+                        colX + colW - StatsScreen.this.textRenderer.getWidth(valueStr) - (int) (20 * uiScale),
+                        currentY, valColor);
+                currentY += fRowH;
+            }
+        };
+
+        String perSec = RpgLocale.getOrDefault("stat.final.regen_sec", "/s");
+
+        // Health & Defense
+        drawStat.draw("stat.final.health", "Max Health: ", String.format("%.1f", 20f + cachedData.getMaxHealthBonus()),
+                0xFFFF5555);
+        drawStat.draw("stat.final.defense", "Defense: ", (int) (cachedData.getDefenseReduction() * 100) + "%",
+                0xFFAAAAAA);
+        drawStat.currentY += (int) (8 * uiScale);
+
+        // Damage
+        drawStat.draw("stat.final.melee", "Melee Damage: ",
+                String.format("%.1f", 1f + cachedData.getMeleeDamageBonus()), 0xFFFF7733);
+        drawStat.draw("stat.final.magic", "Magic Power: ", String.format("%.1f", cachedData.getMagicDamageBonus()),
+                0xFFDD55FF);
+        drawStat.currentY += (int) (8 * uiScale);
+
+        // Mana
+        drawStat.draw("stat.final.mana", "Max Mana: ", String.format("%d", cachedData.getMaxMana()), 0xFF5555FF);
+        drawStat.draw("stat.final.mana_regen", "Mana Regen: ",
+                String.format("+%.1f", cachedData.getManaRegenPerSecond()) + perSec, 0xFF7777FF);
+        drawStat.currentY += (int) (8 * uiScale);
+
+        // Stamina
+        drawStat.draw("stat.final.stamina", "Max Stamina: ", String.format("%d", cachedData.getMaxStamina()),
+                0xFF55FF55);
+        drawStat.draw("stat.final.stamina_regen", "Stamina Regen: ",
+                String.format("+%.1f", cachedData.getStaminaRegenPerSecond()) + perSec, 0xFF77FF77);
     }
 
     // ==================== SKILLS TAB ====================
@@ -282,7 +369,7 @@ public class StatsScreen extends Screen {
 
             // Name & Power
             String name = RpgLocale.getAbilityName(ability.getId());
-            float power = ability.getPower(Math.max(1, level));
+            float power = ability.getPower(Math.max(1, level), cachedData);
             String effectKey = getEffectKey(ability.getId());
             String powerStr = power > 0 ? " [" + RpgLocale.get(effectKey) + String.format("%.1f", power) + "]" : "";
 
@@ -436,9 +523,11 @@ public class StatsScreen extends Screen {
         int currentDynamicHeight = pad * 2; // Паддинги
         currentDynamicHeight += 15 * uiScale; // Header
         currentDynamicHeight += 20 * uiScale; // Level
-        currentDynamicHeight += 12 * uiScale; // Resource cost
-        currentDynamicHeight += 12 * uiScale; // Cooldown
-        currentDynamicHeight += 20 * uiScale; // Power/Damage
+
+        int statSpacing = (int) (16 * uiScale);
+        currentDynamicHeight += statSpacing; // Resource cost
+        currentDynamicHeight += statSpacing; // Cooldown
+        currentDynamicHeight += statSpacing + (int) (4 * uiScale); // Power/Damage
 
         String desc = RpgLocale.getSkillDesc(selectedMagicAbility.getId());
         java.util.List<net.minecraft.text.OrderedText> descLines = this.textRenderer.wrapLines(Text.literal(desc),
@@ -446,7 +535,7 @@ public class StatsScreen extends Screen {
         currentDynamicHeight += descLines.size() * (this.textRenderer.fontHeight + 2); // Description
         currentDynamicHeight += 10 * uiScale; // Отступ перед апгрейдом
 
-        String upgradeDesc = selectedMagicAbility.getUpgradeDescription(level);
+        String upgradeDesc = selectedMagicAbility.getUpgradeDescription(level, cachedData);
         java.util.List<net.minecraft.text.OrderedText> upgLines = this.textRenderer
                 .wrapLines(Text.literal(RpgLocale.get("skill.upgrade_info") + upgradeDesc), w - pad * 2);
         currentDynamicHeight += upgLines.size() * (this.textRenderer.fontHeight + 2); // Upgrade info
@@ -475,24 +564,26 @@ public class StatsScreen extends Screen {
         context.drawCenteredTextWithShadow(this.textRenderer, lblLvl, x + w / 2, textY, 0xFFAAAAAA);
         textY += (int) (20 * uiScale);
 
-        // Stats (Cost, Cooldown)
+        // Stats (Cost, Cooldown, Power)
         int statsX = x + pad;
+        statSpacing = (int) (16 * uiScale);
+
         String resourceText = (selectedMagicAbility.usesStamina() ? RpgLocale.get("skill.stamina")
                 : RpgLocale.get("skill.mana")) + selectedMagicAbility.getResourceCost(Math.max(1, level));
         context.drawTextWithShadow(this.textRenderer, resourceText, statsX, textY, 0xFF55FFFF);
-        textY += (int) (12 * uiScale);
+        textY += statSpacing;
 
         String cdrText = RpgLocale.get("skill.cooldown")
-                + (selectedMagicAbility.getCooldownTicks(Math.max(1, level)) / 20.0f)
-                + RpgLocale.get("skill.sec");
+                + String.format("%.1f", selectedMagicAbility.getCooldownTicks(Math.max(1, level), cachedData) / 20.0f)
+                + " " + RpgLocale.get("skill.sec");
         context.drawTextWithShadow(this.textRenderer, cdrText, statsX, textY, 0xFFFFAA00);
-        textY += (int) (12 * uiScale);
+        textY += statSpacing;
 
         String effectKey = getEffectKey(selectedMagicAbility.getId());
         String powerText = RpgLocale.get(effectKey)
-                + String.format("%.1f", selectedMagicAbility.getPower(Math.max(1, level)));
+                + String.format("%.1f", selectedMagicAbility.getPower(Math.max(1, level), cachedData));
         context.drawTextWithShadow(this.textRenderer, powerText, statsX, textY, 0xFFFF5555);
-        textY += (int) (20 * uiScale);
+        textY += statSpacing + (int) (4 * uiScale);
 
         // Description
         for (net.minecraft.text.OrderedText line : descLines) {
@@ -592,18 +683,19 @@ public class StatsScreen extends Screen {
             int barY = contentY + pad + (int) (14 * uiScale);
             int startY = barY + (int) (18 * uiScale);
             int rowH = (int) (26 * uiScale);
-            for (int i = 0; i < StatType.values().length; i++) {
-                StatType stat = StatType.values()[i];
-                int y = startY + i * rowH;
+            int index = 0;
+            for (AttributeStat stat : StatRegistry.getAll()) {
+                int y = startY + index * rowH;
                 int btnX = contentX + contentW - pad - btnSize;
                 int btnY = y + (rowH - btnSize) / 2;
                 if (mx >= btnX && mx <= btnX + btnSize && my >= btnY && my <= btnY + btnSize) {
-                    if (cachedData.canUpgrade(stat)) {
-                        StatsNetworking.sendUpgradeRequest(stat);
+                    if (cachedData.canUpgrade(stat.getId())) {
+                        StatsNetworking.sendUpgradeRequest(stat.getId());
                         playClickSound();
                     }
                     return true;
                 }
+                index++;
             }
             // Reset with confirmation
             int resetY = contentY + contentH - (int) (30 * uiScale);

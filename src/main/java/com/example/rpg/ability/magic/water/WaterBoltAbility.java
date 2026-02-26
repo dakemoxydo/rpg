@@ -7,6 +7,8 @@ import net.minecraft.entity.effect.StatusEffects;
 import net.minecraft.particle.ParticleTypes;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
+import com.example.rpg.stats.PlayerStatsData;
+import com.example.rpg.stats.RpgWorldData;
 import net.minecraft.sound.SoundCategory;
 import net.minecraft.sound.SoundEvents;
 import net.minecraft.util.math.Box;
@@ -27,22 +29,22 @@ public class WaterBoltAbility extends MagicAbility {
     }
 
     @Override
-    public float getPower(int level) {
+    public float getPower(int level, com.example.rpg.stats.PlayerStatsData data) {
         return 2.0f + Math.max(1, level);
     }
 
     @Override
-    public String getUpgradeDescription(int currentLevel) {
+    public String getUpgradeDescription(int currentLevel, com.example.rpg.stats.PlayerStatsData data) {
         if (currentLevel == 0) {
-            return com.example.rpg.config.RpgLocale.get("upgrade.unlock_ability")
-                    + com.example.rpg.config.RpgLocale.getSkillName(getId());
+            return com.example.rpg.config.RpgLocale.get("upgrade.unlock_general");
         }
         if (currentLevel >= getMaxLevel()) {
             return com.example.rpg.config.RpgLocale.get("upgrade.max_level");
         }
-        return String.format(com.example.rpg.config.RpgLocale.get("upgrade.water_bolt"),
-                getPower(currentLevel), getPower(currentLevel + 1),
-                getCooldownSeconds(currentLevel), getCooldownSeconds(currentLevel + 1));
+        return String.format(
+                com.example.rpg.config.RpgLocale.get("upgrade.rock_fire_water"),
+                getPower(currentLevel, data), getPower(currentLevel + 1, data),
+                getCooldownSeconds(currentLevel, data), getCooldownSeconds(currentLevel + 1, data));
     }
 
     @Override
@@ -69,7 +71,8 @@ public class WaterBoltAbility extends MagicAbility {
 
         world.getEntitiesByClass(net.minecraft.entity.LivingEntity.class, hitBox,
                 e -> e != player && e.isAlive()).forEach(entity -> {
-                    entity.damage(player.getDamageSources().magic(), getPower(skillLevel));
+                    PlayerStatsData data = RpgWorldData.get(player.getServer()).getPlayerData(player.getUuid());
+                    entity.damage(player.getDamageSources().magic(), getPower(skillLevel, data));
                     entity.addStatusEffect(new StatusEffectInstance(StatusEffects.SLOWNESS, 40 + skillLevel * 10, 0));
                 });
 

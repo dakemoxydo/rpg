@@ -24,27 +24,29 @@ public class DashAbility extends Ability {
     }
 
     @Override
-    public float getPower(int level) {
-        return (float) (1.5 + (Math.max(1, level) * 0.5));
+    public float getPower(int level, com.example.rpg.stats.PlayerStatsData data) {
+        // У Dash "power" можно трактовать как силу броска
+        return super.getPower(level, data);
     }
 
     @Override
-    public String getUpgradeDescription(int currentLevel) {
+    public String getUpgradeDescription(int currentLevel, com.example.rpg.stats.PlayerStatsData data) {
         if (currentLevel == 0) {
-            return com.example.rpg.config.RpgLocale.get("upgrade.unlock_ability")
-                    + com.example.rpg.config.RpgLocale.getAbilityName(getId());
+            return com.example.rpg.config.RpgLocale.get("upgrade.unlock_dash");
         }
         if (currentLevel >= getMaxLevel()) {
             return com.example.rpg.config.RpgLocale.get("upgrade.max_level");
         }
         return String.format(com.example.rpg.config.RpgLocale.get("upgrade.dash"),
-                getPower(currentLevel), getPower(currentLevel + 1),
-                getCooldownSeconds(currentLevel), getCooldownSeconds(currentLevel + 1));
+                getPower(currentLevel, data), getPower(currentLevel + 1, data),
+                getCooldownSeconds(currentLevel, data), getCooldownSeconds(currentLevel + 1, data));
     }
 
     @Override
     public void execute(ServerPlayerEntity player, int abilityLevel) {
-        double dashPower = getPower(abilityLevel);
+        com.example.rpg.stats.PlayerStatsData data = com.example.rpg.stats.RpgWorldData.get(player.getServer())
+                .getPlayerData(player.getUuid());
+        double dashPower = getPower(abilityLevel, data);
 
         Vec3d lookDirection = player.getRotationVector();
         Vec3d velocity = lookDirection.multiply(dashPower);

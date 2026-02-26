@@ -28,24 +28,24 @@ public interface IAbility {
     /**
      * @return Длительность кулдауна в тиках на указанном уровне
      */
-    int getCooldownTicks(int level);
+    int getCooldownTicks(int level, com.example.rpg.stats.PlayerStatsData data);
 
     /**
      * @return Длительность кулдауна в секундах на указанном уровне
      */
-    int getCooldownSeconds(int level);
+    int getCooldownSeconds(int level, com.example.rpg.stats.PlayerStatsData data);
 
     /**
      * @return Сила способности (урон, лечение, сила эффекта) на указанном уровне
      */
-    float getPower(int level);
+    float getPower(int level, com.example.rpg.stats.PlayerStatsData data);
 
     /**
      * Возвращает креативное описание того, что дает переход на следующий уровень
      * (currentLevel + 1). Если текущий уровень 0, должно быть "Разблокирует
      * способность".
      */
-    String getUpgradeDescription(int currentLevel);
+    String getUpgradeDescription(int currentLevel, com.example.rpg.stats.PlayerStatsData data);
 
     /**
      * @return Использует ли способность стамину (true) или ману (false)

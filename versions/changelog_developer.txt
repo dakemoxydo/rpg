@@ -1,6 +1,18 @@
 # RPG Mod — Журнал разработки
 
 
+## [v2.1.0]
+Полная переработка статов, новая вкладка сборки (Build) и внедрение модульного вычисления характеристик скиллов.
+
+- StatRegistry.java, IStat.java, AbstractStat.java: Новая архитектура статов (Strength, Dexterity, Vitality, Intelligence, Magic Power) с динамическим вычислением бонусов на каждый уровень.
+- PlayerStatsData.java: Добавлена логика Защиты (Defense), снижающая входящий урон; рефакторинг методов на строковые ID.
+- LivingEntityDamageMixin.java: Интегрирован перехват урона и применение множителя Defense (процентное уменьшение).
+- StatsScreen.java: Редизайн UI характеристик — прогресс-бары растянуты на новую ширину; Итоговые статы вынесены в отдельную вкладку Tab.BUILD.
+- RpgLocale.java: Добавлены ключи для новых статов, вкладки build.
+- IAbility.java, AbstractAbility.java: Методы getPower, getCooldown, и getUpgradeDescription теперь каскадно принимают PlayerStatsData для точного скейлинга от статов игрока. Вычищены nullpointer'ы.
+- RockThrowAbility.java: Исправлено падение игры из-за null PlayerStatsData при расчете силы булыжника (FallingBlockEntity).
+
+
 ## [v1.2.0-beta]
 Редизайн UI и модульность HUD
 
@@ -48,7 +60,13 @@
 - StatsScreen.java: добавлена тень сайдбара (drop shadow) для единообразия с контентной панелью
 
 
-## [v1.4.2-beta]
+## [v2.0.3-beta]
+Добавлен счетчик комбо-урона (Damage Combo HUD)
+
+- RpgHudRenderer.java: Новый элемент интерфейса, суммирующий урон за последние 5 секунд. Отображает накопившийся урон и стилизованную шкалу времени.
+- StatsNetworking.java: Пакет `ADD_COMBO_DAMAGE` для передачи комбо на клиент.
+- LivingEntityDamageMixin.java: Передача урона атакующему игроку для обновления счетчика комбо.
+- DamageTextManager.java: Цифры урона теперь 100% точные, белого цвета с четким черным контуром.
 Комплексное улучшение UI (Адаптивность, фиксы стилей)
 
 - ElementSelectionScreen.java: заменены невидимые ButtonWidget на mouseClicked, карты рендерятся через drawGlassPanel с hover-подсказками.
