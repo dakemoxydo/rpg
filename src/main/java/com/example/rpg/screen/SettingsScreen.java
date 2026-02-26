@@ -220,10 +220,7 @@ public class SettingsScreen extends Screen {
 
         // Separator
         int sepY = langBtnY + langBtnH + (int) (4 * uiScale);
-        context.fillGradient(panelX + pad, sepY, panelX + panelW / 2 - pad, sepY + 1,
-                borderS, 0x00000000);
-        context.fillGradient(panelX + panelW / 2 + pad, sepY, panelX + panelW - pad, sepY + 1,
-                0x00000000, borderS);
+        context.fill(panelX + pad, sepY, panelX + panelW - pad, sepY + 1, borderS);
 
         // -- Scrollable bind list with scissor --
         context.enableScissor(panelX + 1, listAreaTop, panelX + panelW - 1, listAreaTop + listAreaH);
@@ -245,9 +242,9 @@ public class SettingsScreen extends Screen {
                 context.drawTextWithShadow(this.textRenderer, entry.label,
                         panelX + pad + (int) (4 * uiScale), y + (int) (4 * uiScale), titleColor);
                 // Gradient divider under header
-                context.fillGradient(panelX + pad, y + hdrH,
+                context.fill(panelX + pad, y + hdrH,
                         panelX + panelW - pad, y + hdrH + 1,
-                        RenderUtils.withAlpha(accentColor, 0.4f), 0x00000000);
+                        RenderUtils.withAlpha(accentColor, 0.4f));
             } else {
                 // Row hover highlight
                 int rowLeft = panelX + pad;

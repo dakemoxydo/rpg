@@ -199,9 +199,7 @@ public class StatsScreen extends Screen {
         // Separator after header
         int sepY = barY + (int) (10 * uiScale);
         int borderS = el != MagicElement.NONE ? el.borderSecondary : 0xFF333333;
-        context.fillGradient(cx, sepY, cx + barW / 2, sepY + 1, borderS, 0x00000000);
-        context.fillGradient(contentX + contentW - pad - barW / 2, sepY, contentX + contentW - pad, sepY + 1,
-                0x00000000, borderS);
+        context.fill(cx, sepY, cx + barW, sepY + 1, borderS);
 
         int columnsY = sepY + (int) (10 * uiScale);
 
@@ -288,8 +286,7 @@ public class StatsScreen extends Screen {
                 colX + colW / 2, columnsY + (int) (4 * uiScale), 0xFFFFCC44);
 
         int rSepY = columnsY + (int) (16 * uiScale);
-        context.fillGradient(colX, rSepY, colX + colW / 2, rSepY + 1, borderS, 0x00000000);
-        context.fillGradient(colX + colW / 2, rSepY, colX + colW, rSepY + 1, 0x00000000, borderS);
+        context.fill(colX, rSepY, colX + colW, rSepY + 1, borderS);
 
         int fY = rSepY + (int) (8 * uiScale);
         int fRowH = (int) (18 * uiScale);
@@ -351,7 +348,7 @@ public class StatsScreen extends Screen {
         // Separator after header
         int sepY = cy + (int) (12 * uiScale);
         int borderS = el != MagicElement.NONE ? el.borderSecondary : 0xFF333333;
-        context.fillGradient(cx, sepY, cx + (contentW - pad * 2) / 2, sepY + 1, borderS, 0x00000000);
+        context.fill(cx, sepY, cx + contentW - pad * 2, sepY + 1, borderS);
 
         int startY = cy + (int) (20 * uiScale);
         int rowH = (int) (30 * uiScale);
