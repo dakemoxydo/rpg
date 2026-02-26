@@ -1,23 +1,104 @@
-# Developer Changelog
+# RPG Mod — Журнал разработки
 
-В этот список изменений заносятся все технические действия, модификации и завершения задач, выполненные агентом для разработчика.
 
-[версия 2.0.0 (бета-версия)] Задача: полная переработка пользовательского интерфейса и HUD (версия 2.0)
-- RpgHudRenderer.java: Плавающие панели ресурсов заменены на панель управления с нижней привязкой в стиле MMO. Заменено всплывающее окно с повышением уровня на масштабное кинематографическое полноэкранное наложение текста и виньетку.
-- StatsScreen.java: Полностью заменен интерфейс навигации на левой боковой панели. Статистика теперь представлена в виде визуальных блоков, а на вкладке Magic используется формат радиального дерева, начинающегося от центра.
-- ElementSelectionScreen.java: Вместо маленьких кнопок в виде сетки появилась горизонтальная карусель из 5 карт Таро с вертикальной анимацией при наведении курсора мыши и полноэкранной подсветкой.
-- SettingsScreen.java: Увеличен размер панели, реализована эстетика темного стекломорфизма, плавные градиенты и переработан стиль полосы прокрутки, чтобы соответствовать стандартам "ui-max-minecraft".
+## [v1.2.0-beta]
+Редизайн UI и модульность HUD
 
-[версия 2.0.1 (бета-версия)] Задача: Доработка пользовательского интерфейса (переходы и красота HUD)
-- ElementSelectionScreen.java: Реализована плавная линейная цветовая интерполяция для полноэкранного фона и описаний. Исправлен эффект "мерцания", когда мышь попадает в промежуток между картами Таро.
-- RpgHudRenderer.java: Улучшены показатели выносливости и маны за счет внутреннего свечения, цветения по краям, сегментированных меток в стиле MMO и многослойных теней. Панель управления способностями также была улучшена за счет более насыщенных градиентов и гладкого верхнего края.
+- RpgHudRenderer.java: панель ресурсов → MMO-док, полноэкранный эффект level-up
+- StatsScreen.java: боковая навигация, визуальные блоки статов, радиальное дерево магии
+- ElementSelectionScreen.java: карусель из карт Таро с анимацией при наведении
+- SettingsScreen.java: стекломорфизм, градиенты, обновлённый скроллбар
+- IAbility.java: создан единый интерфейс для всех способностей
+- Ability.java, MagicAbility.java: реализуют `IAbility`, добавлен `usesStamina()`
+- AbilityCooldownManager.java: полиморфный поиск через `IAbility`
+- RpgHudRenderer.java: рендеринг через список `IAbility`, анимация кулдауна для всех скиллов
 
-[версия 2.0.2 (бета-версия)] Задача: Изменение компоновки HUD и улучшение экрана выбора
-- ElementSelectionScreen.java: Изменена логика отображения фона и названия стихии: теперь при наведении на карту Таро фон и текст стихии остаются на экране, пока игрок не наведет курсор на другую карту. Изначальная надпись "Choose Element" пропадает навсегда после первого наведения.
-- RpgHudRenderer.java: Панель способностей перенесена в правую часть экрана с горизонтальной ориентации на вертикальную раскладку. Текст назначенных клавиш сдвинут влево. Добавлены текстовые подписи "Mana" и "Stamina" над соответствующими шкалами прогресса.
 
-[версия 2.1.0 (альфа-версия)] Задача: Разработка модульной ООП-системы способностей и унификация HUD-рендерера
-- IAbility.java: Создан единый базовый интерфейс `IAbility` для стандартизации всех активных навыков в игре.
-- Ability.java, MagicAbility.java: Оба базовых абстрактных класса переведены на использование нового интерфейса `IAbility`. Добавлена логика `usesStamina()` для магии.
-- AbilityCooldownManager.java: Обновлен алгоритм поиска способностей при вычислении графического прогресса кулдауна. Теперь он поддерживает глобальный поиск полиморфного интерфейса `IAbility` через `AbilityRegistry` и `MagicSkillRegistry`, что навсегда решает проблему неработающих кулдаунов магии в HUD.
-- RpgHudRenderer.java: Упразднен промежуточный рекорд `AbilityView`. Весь рендеринг способностей (дока и иконок) полностью переписан на работу со списком `IAbility`. Теперь любая новая способность, в том числе стихийная магия, будет автоматически рендериться с красивой и правильной анимацией циферблата перезарядки (cooldown progress), как у рывка и исцеления.
+## [v1.3.0-beta]
+ООП-рефакторинг системы способностей
+
+- AbstractAbility.java: новый базовый класс с generic Builder
+- Ability.java: упрощён (114→18 строк), наследует `AbstractAbility`
+- MagicAbility.java: упрощён (149→64 строки), наследует `AbstractAbility`
+- AbilityRegistry.java: объединён с `MagicSkillRegistry`, единый реестр
+- MagicSkillRegistry.java: удалён
+- StatsNetworking.java: `USE_ABILITY` + `USE_MAGIC_SKILL` → один пакет (~25% меньше кода)
+- PlayerStatsData.java: единая `skillLevels`, миграция NBT
+- RpgClient.java: единый цикл по `AbilityRegistry.getAll()`
+- StatsScreen.java, SettingsScreen.java, RpgHudRenderer.java: единый API
+
+
+## [v1.4.0-beta]
+Редизайн UI + per-player настройки
+
+- PlayerStatsData.java: поля language, openMenuKey, keybinds + NBT сериализация
+- StatsNetworking.java: пакет UPDATE_SETTINGS (C→S) для сохранения настроек
+- RpgLocale.java: язык из профиля игрока, fallback на RpgConfig
+- RenderUtils.java: drawGlassPanel, drawProgressBar, drawCustomButton, drawUpgradeButton, lerp
+- StatsScreen.java: полный редизайн — кастомный рендеринг, lerp-фон, анимированные рамки, прогресс-бары
+- SettingsScreen.java: полный редизайн — кастомные кнопки, per-player язык/бинды через сетевые пакеты
+
+
+## [v1.4.1-beta]
+Редизайн кнопок Settings UI + автоматизация скиллов
+
+- SettingsScreen.java: убраны все ButtonWidget, замена на кастомный рендеринг (drawBindButton, drawCustomButton), пульсация при ожидании бинда, hover-строки, иконки категорий, звук клика
+- RenderUtils.java: добавлены drawSettingsRow, drawBindButton
+- CLAUDE.md, GEMINI.md: расширены триггер-фразы, добавлены Auto-trigger Rules (changelog-developer, ui-max-minecraft, brainstorm)
+- StatsScreen.java: добавлена тень сайдбара (drop shadow) для единообразия с контентной панелью
+
+
+## [v1.4.2-beta]
+Комплексное улучшение UI (Адаптивность, фиксы стилей)
+
+- ElementSelectionScreen.java: заменены невидимые ButtonWidget на mouseClicked, карты рендерятся через drawGlassPanel с hover-подсказками.
+- StatsScreen.java: адаптивный сайдбар (% от панели), добавлены разделители категорий, звук кнопок уровня. Кнопка Reset требует подтверждения.
+- RpgHudRenderer.java: заменены захардкоженные цвета (панелей и рамок) на стилизованные под текущий MagicElement.
+- RpgLocale.java: добавлены ключи element.click_hint и menu.reset.confirm.
+
+
+## [v1.5.0-beta]
+Модульное Дерево Навыков и Стандартизация HUD
+
+- IAbility.java, AbstractAbility.java: добавлен метод getThemeColor() и поддержка themeColor в Builder для ООП-стандартизации цветов.
+- MagicAbility.java, DashAbility.java, HealAbility.java: привязаны конкретные цвета для каждого типа (стихия, стамина-оранж, хил-зеленый).
+- RpgHudRenderer.java: заменены костыли с if (usesStamina) на использование ability.getThemeColor(), что делает цвета элементов в доке и кулдаунах полностью модульными.
+- StatsScreen.java: переработана вкладка магии (сплит-скрин). Дерево навыков сдвинуто влево, при клике на ноду (выделяется белой рамкой) справа открывается панель деталей навыка (lore, стоимость ресурса, кулдаун). Кнопка Upgrade перенесена внутрь панели деталей.
+- RpgLocale.java: добавлены локализованные описания (lore) для всех магических скиллов и метод getSkillDesc().
+
+
+## [v1.5.1-beta]
+Глубокий ООП-Рефакторинг Характеристик и Магии
+
+[02.26.2026] v1.5.1-beta - Dynamic Skill Stats & UI Centering
+[FEATURE] Навыки:
+- Отменена автоматическая выдача базового навыка при выборе стихии. (Теперь игрок должен сам вкачать 1й уровень).
+- Обновлен API `IAbility` и `AbstractAbility`: добавлены динамические характеристики `getPower(level)`, `getCooldownSeconds(level)`, `getCooldownTicks(level)`.
+- Добавлен метод `getUpgradeDescription(currentLevel)`, возвращающий удобочитаемое описание следующего уровня прокачки навыка.
+- Внедрен скейлинг характеристик (Урон, Дальность, Кулдаун, Эффекты) для `DashAbility`, `HealAbility`, `FireballAbility`, `WaterBoltAbility`, `RockThrowAbility`, `GustAbility`, `ShockAbility`.
+
+[UI/UX] StatsScreen & RpgHudRenderer:
+- `StatsScreen`: Панель информации о навыках справа теперь центрируется по вертикали с одинаковыми отступами сверху и снизу.
+- `StatsScreen`: Добавлен расчет динамической высоты панели на основе кол-ва выводимого текста.
+- `StatsScreen`: Добавлен вывод текущих характеристик способности (Расход, Кулдаун) в зависимости от уровня.
+- `StatsScreen`: Добавлен вывод "Апгрейд: [Текст]" с информацией о том, что даст следующий уровень навыка.
+- `RpgHudRenderer` & `AbilityCooldownManager`: Добавлена передача уровня скилла для корректного расчета прогресса кулдауна.
+
+- MagicElement.java: удалены хардкод-методы getManaColor(), getStaminaColor() и getStatColor(StatType), использовавшие switch. Теперь manaColor и staminaColor — неизменяемые (final) поля, получаемые через конструктор.
+- StatType.java: добавлена полная инкапсуляция логики. Внедрены поля baseRegen, regenPerLevel. Описание следующего уровня (getNextLevelDescription) теперь генерируется через лямбду (BiFunction), переданную в конструктор, что позволило избавиться от длинных цепочек if (this == ...). Добавлен метод getColor(MagicElement), определяющий цвет стата.
+- StatsScreen.java & RpgHudRenderer.java: обновлены вызовы получения цветов под новую архитектуру (через stat.getColor(el) и поля element.staminaColor).
+
+
+## [v1.5.2-beta]
+Фикс хитбоксов для кнопок и полная локализация навыков
+
+- StatsScreen.java: исправлен баг с хитбоксом кнопки Upgrade на вкладке магии, вынесены хардкод строки
+- RpgLocale.java: добавлены ключи локализации (upgrade.unlock_ability, upgrade.max_level, skill.locked и др.)
+- DashAbility.java, HealAbility.java, GustAbility.java, WaterBoltAbility.java, ShockAbility.java, FireballAbility.java, RockThrowAbility.java: удалены хардкодные русские описания апгрейдов, добавлен вызов RpgLocale.get
+- AbstractAbility.java: удалены хардкодные строки (upgrade.default)
+
+## [v1.5.3-beta]
+Отображение базового урона/силы для навыков и своп кнопок UI
+
+- StatsScreen.java: поменял местами кнопки Close и Settings, добавлено отображение характеристики Power (урон/сила/лечение) в панель деталей магических навыков и в список физических скиллов
+- RpgLocale.java: добавлены ключи skill.power.damage, skill.power.heal, skill.power.force

@@ -1,71 +1,51 @@
 package com.example.rpg;
 
-import com.example.rpg.ability.Ability;
-import com.example.rpg.ability.AbilityRegistry;
-import com.example.rpg.ability.MagicSkillRegistry;
+import com.example.rpg.ability.*;
 import com.example.rpg.ability.magic.MagicAbility;
 import com.example.rpg.config.RpgConfig;
-import com.example.rpg.effect.RpgHudRenderer;
 import com.example.rpg.network.StatsNetworking;
+import com.example.rpg.effect.RpgHudRenderer;
 import com.example.rpg.screen.StatsScreen;
 import com.example.rpg.stats.IPlayerStatsAccessor;
-import com.example.rpg.stats.MagicElement;
 import com.example.rpg.stats.PlayerStatsData;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.option.KeyBinding;
+import net.minecraft.client.util.InputUtil;
 import org.lwjgl.glfw.GLFW;
-
-import java.util.HashMap;
-import java.util.Map;
 
 public class RpgClient implements ClientModInitializer {
 
-    private static int menuKey;
-    private static boolean menuWasPressed = false;
-
-    // Состояние нажатия для каждой способности: ID -> pressed
-    private static final Map<String, Boolean> abilityPressedState = new HashMap<>();
+    private static KeyBinding openMenuKey;
 
     @Override
     public void onInitializeClient() {
+        // Загрузка конфигурации
         RpgConfig.load();
-        menuKey = RpgConfig.get().getOpenMenuKey();
 
+        // Регистрация клиентских обработчиков
         StatsNetworking.registerClientHandlers();
+
+        // HUD
         RpgHudRenderer.register();
-        registerKeybinds();
-    }
 
-    private void registerKeybinds() {
+        // Кнопка открытия меню
+        openMenuKey = new KeyBinding("key.rpg.menu", InputUtil.Type.KEYSYM,
+                RpgConfig.get().getOpenMenuKey(), "category.rpg");
+        net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper.registerKeyBinding(openMenuKey);
+
+        // Обработка клавиш каждый тик
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
-            if (client.player == null)
+            if (client.player == null || client.currentScreen != null)
                 return;
 
-            long window = client.getWindow().getHandle();
-
-            // Menu key (Support both keyboard and mouse)
-            boolean menuPressed = false;
-            if (menuKey >= 0 && menuKey <= 7) {
-                menuPressed = GLFW.glfwGetMouseButton(window, menuKey) == GLFW.GLFW_PRESS;
-            } else {
-                menuPressed = GLFW.glfwGetKey(window, menuKey) == GLFW.GLFW_PRESS;
+            // Открытие меню
+            if (openMenuKey.wasPressed()) {
+                client.setScreen(new StatsScreen());
             }
 
-            if (menuPressed && !menuWasPressed) {
-                if (client.currentScreen == null) {
-                    client.setScreen(new StatsScreen());
-                } else if (client.currentScreen instanceof StatsScreen) {
-                    client.setScreen(null);
-                }
-            }
-            menuWasPressed = menuPressed;
-
-            // Если открыто меню - способности не работают
-            if (client.currentScreen != null)
-                return;
-
-            // Получаем данные игрока для проверки доступности скиллов
+            // Проверка всех способностей через единый реестр
             PlayerStatsData data = null;
             if (client.player instanceof IPlayerStatsAccessor accessor) {
                 data = accessor.rpg_getStatsData();
@@ -73,49 +53,47 @@ public class RpgClient implements ClientModInitializer {
             if (data == null)
                 return;
 
-            // 1. Обычные способности
-            for (Ability ability : AbilityRegistry.getAll()) {
-                checkAbilityKey(window, ability.getId(), ability.getDefaultKey(), false);
-            }
+            for (IAbility ability : AbilityRegistry.getAll()) {
+                // Фильтр: нужен ли скилл у игрока
+                if (!data.hasSkill(ability.getId()))
+                    continue;
 
-            // 2. Магические способности (только активные и только текущей стихии)
-            MagicElement element = data.getElement();
-            if (element != MagicElement.NONE) {
-                for (MagicAbility ability : MagicSkillRegistry.getAbilitiesForElement(element)) {
-                    // Проверяем только активные скиллы (у которых есть мана кост)
-                    if (ability.getManaCost() > 0) {
-                        checkAbilityKey(window, ability.getId(), ability.getDefaultKey(), true);
+                // Для магии — проверяем стихию
+                if (ability instanceof MagicAbility magic) {
+                    if (data.getElement() != magic.getElement())
+                        continue;
+                    if (magic.getManaCost() <= 0)
+                        continue; // Пассивные скиллы не активируются
+                }
+
+                // Проверяем нажатие клавиши
+                int keyCode = RpgConfig.get().getKeybind(ability.getId(), ability.getDefaultKey());
+                if (keyCode != GLFW.GLFW_KEY_UNKNOWN && isKeyPressed(client, keyCode)) {
+                    // Проверяем кулдаун на клиенте (для отзывчивости)
+                    if (!AbilityCooldownManager.isOnCooldown(client.player.getUuid(), ability.getId())) {
+                        StatsNetworking.sendUseAbility(ability.getId());
                     }
                 }
             }
         });
     }
 
-    private void checkAbilityKey(long window, String abilityId, int defaultKey, boolean isMagic) {
-        int key = RpgConfig.get().getKeybind(abilityId, defaultKey);
-        if (key == GLFW.GLFW_KEY_UNKNOWN)
-            return;
-
-        boolean pressed = false;
-        if (key >= 0 && key <= 7) {
-            pressed = GLFW.glfwGetMouseButton(window, key) == GLFW.GLFW_PRESS;
-        } else {
-            pressed = GLFW.glfwGetKey(window, key) == GLFW.GLFW_PRESS;
+    private static boolean isKeyPressed(MinecraftClient client, int keyCode) {
+        if (client.getWindow() == null)
+            return false;
+        // Мышь (GLFW mouse buttons 0-7)
+        if (keyCode >= 0 && keyCode <= 7) {
+            return GLFW.glfwGetMouseButton(client.getWindow().getHandle(), keyCode) == GLFW.GLFW_PRESS;
         }
-
-        boolean wasPressed = abilityPressedState.getOrDefault(abilityId, false);
-
-        if (pressed && !wasPressed) {
-            if (isMagic) {
-                StatsNetworking.sendUseMagicSkill(abilityId);
-            } else {
-                StatsNetworking.sendUseAbility(abilityId);
-            }
-        }
-        abilityPressedState.put(abilityId, pressed);
+        // Клавиатура
+        return InputUtil.isKeyPressed(client.getWindow().getHandle(), keyCode);
     }
 
-    public static void updateMenuKeyBind(int newKey) {
-        menuKey = newKey;
+    public static void updateMenuKeyBind(int keyCode) {
+        if (openMenuKey != null) {
+            openMenuKey.setBoundKey(keyCode >= 0 && keyCode <= 7
+                    ? InputUtil.Type.MOUSE.createFromCode(keyCode)
+                    : InputUtil.Type.KEYSYM.createFromCode(keyCode));
+        }
     }
 }

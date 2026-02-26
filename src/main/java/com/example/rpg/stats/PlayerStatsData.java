@@ -1,7 +1,7 @@
 package com.example.rpg.stats;
 
-import com.example.rpg.ability.MagicSkillRegistry;
-import com.example.rpg.ability.magic.MagicAbility;
+import com.example.rpg.ability.AbilityRegistry;
+import com.example.rpg.ability.IAbility;
 import net.minecraft.nbt.NbtCompound;
 import java.util.HashMap;
 import java.util.Map;
@@ -9,8 +9,13 @@ import java.util.Map;
 public class PlayerStatsData {
 
     private final Map<StatType, Integer> statLevels = new HashMap<>();
-    private final Map<String, Integer> abilityLevels = new HashMap<>();
-    private final Map<String, Integer> magicSkillLevels = new HashMap<>();
+
+    /**
+     * Единая карта уровней всех способностей (физических и магических).
+     * Ключ — ID способности (например, "dash", "fire_fireball").
+     */
+    private final Map<String, Integer> skillLevels = new HashMap<>();
+
     private int totalXp = 0;
     private int currentLevel = 0;
     private int skillPoints = 0;
@@ -20,6 +25,11 @@ public class PlayerStatsData {
 
     private MagicElement element = MagicElement.NONE;
 
+    // Per-player settings
+    private String language = "en";
+    private int openMenuKey = org.lwjgl.glfw.GLFW.GLFW_KEY_N;
+    private final Map<String, Integer> keybinds = new HashMap<>();
+
     public PlayerStatsData() {
         for (StatType stat : StatType.values()) {
             statLevels.put(stat, 0);
@@ -28,7 +38,9 @@ public class PlayerStatsData {
 
     // --- Стихия ---
 
-    public MagicElement getElement() { return element; }
+    public MagicElement getElement() {
+        return element;
+    }
 
     public void setElement(MagicElement element) {
         this.element = element;
@@ -40,54 +52,121 @@ public class PlayerStatsData {
 
     public void resetElement() {
         this.element = MagicElement.NONE;
-        this.magicSkillLevels.clear();
+        skillLevels.entrySet().removeIf(entry -> AbilityRegistry.getMagicAbility(entry.getKey()) != null);
     }
 
-    // --- Магические скилы ---
+    // --- Per-player settings ---
 
-    public int getMagicSkillLevel(String skillId) {
-        return magicSkillLevels.getOrDefault(skillId, 0);
+    public String getLanguage() {
+        return language;
     }
 
-    public void setMagicSkillLevel(String skillId, int level) {
-        magicSkillLevels.put(skillId, level);
+    public void setLanguage(String language) {
+        this.language = language;
     }
 
-    public boolean canUpgradeMagicSkill(String skillId, int maxLevel, int cost) {
-        int currentLvl = getMagicSkillLevel(skillId);
+    public boolean isRussian() {
+        return "ru".equals(language);
+    }
+
+    public int getOpenMenuKey() {
+        return openMenuKey;
+    }
+
+    public void setOpenMenuKey(int key) {
+        this.openMenuKey = key;
+    }
+
+    public int getKeybind(String abilityId, int defaultKey) {
+        return keybinds.getOrDefault(abilityId, defaultKey);
+    }
+
+    public void setKeybind(String abilityId, int key) {
+        keybinds.put(abilityId, key);
+    }
+
+    public Map<String, Integer> getKeybinds() {
+        return keybinds;
+    }
+
+    public void clearAllKeybinds() {
+        keybinds.clear();
+    }
+
+    // --- Единая система уровней способностей ---
+
+    public int getSkillLevel(String skillId) {
+        return skillLevels.getOrDefault(skillId, 0);
+    }
+
+    public void setSkillLevel(String skillId, int level) {
+        skillLevels.put(skillId, level);
+    }
+
+    public boolean hasSkill(String skillId) {
+        return getSkillLevel(skillId) > 0;
+    }
+
+    public boolean canUpgradeSkill(String skillId, int maxLevel, int cost) {
+        int currentLvl = getSkillLevel(skillId);
         return currentLvl < maxLevel && skillPoints >= cost;
     }
 
-    public boolean upgradeMagicSkill(String skillId, int maxLevel, int cost) {
-        if (!canUpgradeMagicSkill(skillId, maxLevel, cost)) return false;
+    public boolean upgradeSkill(String skillId, int maxLevel, int cost) {
+        if (!canUpgradeSkill(skillId, maxLevel, cost))
+            return false;
         skillPoints -= cost;
-        magicSkillLevels.put(skillId, getMagicSkillLevel(skillId) + 1);
+        skillLevels.put(skillId, getSkillLevel(skillId) + 1);
         return true;
     }
 
+    // Обратная совместимость: алиасы для старого API
+    public int getAbilityLevel(String abilityId) {
+        return getSkillLevel(abilityId);
+    }
+
+    public int getMagicSkillLevel(String skillId) {
+        return getSkillLevel(skillId);
+    }
+
+    public boolean hasAbility(String abilityId) {
+        return hasSkill(abilityId);
+    }
+
     public boolean hasMagicSkill(String skillId) {
-        return getMagicSkillLevel(skillId) > 0;
+        return hasSkill(skillId);
     }
 
     public boolean meetsRequirements(String[] requiredSkills) {
-        if (requiredSkills == null || requiredSkills.length == 0) return true;
+        if (requiredSkills == null || requiredSkills.length == 0)
+            return true;
         for (String reqId : requiredSkills) {
-            if (reqId == null || getMagicSkillLevel(reqId) <= 0) return false;
+            if (reqId == null || getSkillLevel(reqId) <= 0)
+                return false;
         }
         return true;
     }
 
+    public int getSpentSkillPoints() {
+        int spent = 0;
+        for (Map.Entry<String, Integer> entry : skillLevels.entrySet()) {
+            IAbility ability = AbilityRegistry.get(entry.getKey());
+            if (ability != null) {
+                spent += entry.getValue() * ability.getCostPerLevel();
+            } else {
+                spent += entry.getValue() * 2; // Fallback
+            }
+        }
+        return spent;
+    }
+
+    // Обратная совместимость
     public int getSpentMagicPoints() {
         int spent = 0;
-        for (Map.Entry<String, Integer> entry : magicSkillLevels.entrySet()) {
-            String skillId = entry.getKey();
-            int level = entry.getValue();
-
-            MagicAbility ability = MagicSkillRegistry.getAbility(skillId);
-            if (ability != null) {
-                spent += level * ability.getCostPerLevel();
-            } else {
-                spent += level * 3;
+        for (Map.Entry<String, Integer> entry : skillLevels.entrySet()) {
+            if (AbilityRegistry.getMagicAbility(entry.getKey()) != null) {
+                IAbility ability = AbilityRegistry.get(entry.getKey());
+                spent += entry.getValue() * ability.getCostPerLevel();
             }
         }
         return spent;
@@ -105,7 +184,8 @@ public class PlayerStatsData {
     }
 
     public boolean upgradeStat(StatType stat) {
-        if (!canUpgrade(stat)) return false;
+        if (!canUpgrade(stat))
+            return false;
         skillPoints -= stat.getCostPerPoint();
         statLevels.put(stat, getStatLevel(stat) + 1);
         return true;
@@ -124,7 +204,7 @@ public class PlayerStatsData {
 
     public int getMaxMana() {
         int level = getStatLevel(StatType.MANA);
-        return 100 + (level * 20);
+        return (int) StatType.MANA.getValueAtLevel(level);
     }
 
     public float getCurrentMana() {
@@ -137,7 +217,7 @@ public class PlayerStatsData {
 
     public float getManaRegenPerSecond() {
         int level = getStatLevel(StatType.MANA);
-        return 1.0f + (level * 1.0f);
+        return (float) StatType.MANA.getRegenAtLevel(level);
     }
 
     public boolean useMana(int amount) {
@@ -154,7 +234,8 @@ public class PlayerStatsData {
 
     public float getManaProgress() {
         int max = getMaxMana();
-        if (max <= 0) return 0;
+        if (max <= 0)
+            return 0;
         return getCurrentMana() / max;
     }
 
@@ -162,7 +243,7 @@ public class PlayerStatsData {
 
     public int getMaxStamina() {
         int level = getStatLevel(StatType.STAMINA);
-        return 100 + (level * 15);
+        return (int) StatType.STAMINA.getValueAtLevel(level);
     }
 
     public float getCurrentStamina() {
@@ -175,7 +256,7 @@ public class PlayerStatsData {
 
     public float getStaminaRegenPerSecond() {
         int level = getStatLevel(StatType.STAMINA);
-        return 2.0f + (level * 0.5f);
+        return (float) StatType.STAMINA.getRegenAtLevel(level);
     }
 
     public boolean useStamina(int amount) {
@@ -192,45 +273,36 @@ public class PlayerStatsData {
 
     public float getStaminaProgress() {
         int max = getMaxStamina();
-        if (max <= 0) return 0;
+        if (max <= 0)
+            return 0;
         return getCurrentStamina() / max;
-    }
-
-    // --- Способности ---
-
-    public int getAbilityLevel(String abilityId) {
-        return abilityLevels.getOrDefault(abilityId, 0);
-    }
-
-    public void setAbilityLevel(String abilityId, int level) {
-        abilityLevels.put(abilityId, level);
-    }
-
-    public boolean canUpgradeAbility(String abilityId, int maxLevel, int cost) {
-        int currentLvl = getAbilityLevel(abilityId);
-        return currentLvl < maxLevel && skillPoints >= cost;
-    }
-
-    public boolean upgradeAbility(String abilityId, int maxLevel, int cost) {
-        if (!canUpgradeAbility(abilityId, maxLevel, cost)) return false;
-        skillPoints -= cost;
-        abilityLevels.put(abilityId, getAbilityLevel(abilityId) + 1);
-        return true;
-    }
-
-    public boolean hasAbility(String abilityId) {
-        return getAbilityLevel(abilityId) > 0;
     }
 
     // --- XP и уровни ---
 
-    public int getTotalXp() { return totalXp; }
-    public int getCurrentLevel() { return currentLevel; }
-    public int getSkillPoints() { return skillPoints; }
+    public int getTotalXp() {
+        return totalXp;
+    }
 
-    public void setSkillPoints(int points) { this.skillPoints = points; }
-    public void setCurrentLevel(int level) { this.currentLevel = level; }
-    public void setTotalXp(int xp) { this.totalXp = xp; }
+    public int getCurrentLevel() {
+        return currentLevel;
+    }
+
+    public int getSkillPoints() {
+        return skillPoints;
+    }
+
+    public void setSkillPoints(int points) {
+        this.skillPoints = points;
+    }
+
+    public void setCurrentLevel(int level) {
+        this.currentLevel = level;
+    }
+
+    public void setTotalXp(int xp) {
+        this.totalXp = xp;
+    }
 
     public int getXpForNextLevel() {
         return 50 + (currentLevel * 25);
@@ -246,7 +318,8 @@ public class PlayerStatsData {
 
     public float getXpProgress() {
         int needed = getXpForNextLevel();
-        if (needed <= 0) return 1.0f;
+        if (needed <= 0)
+            return 1.0f;
         return (float) getCurrentLevelXp() / (float) needed;
     }
 
@@ -272,14 +345,15 @@ public class PlayerStatsData {
         for (StatType stat : StatType.values()) {
             statLevels.put(stat, 0);
         }
-        abilityLevels.clear();
+        skillLevels.clear();
     }
 
     public void resetStats() {
         for (StatType stat : StatType.values()) {
             statLevels.put(stat, 0);
         }
-        abilityLevels.clear();
+        // При сбросе статов обнуляем только физические скиллы
+        skillLevels.entrySet().removeIf(entry -> AbilityRegistry.getMagicAbility(entry.getKey()) == null);
         currentMana = Math.min(currentMana, getMaxMana());
         currentStamina = Math.min(currentStamina, getMaxStamina());
     }
@@ -289,8 +363,16 @@ public class PlayerStatsData {
         for (StatType stat : StatType.values()) {
             spent += getStatLevel(stat) * stat.getCostPerPoint();
         }
-        for (int level : abilityLevels.values()) {
-            spent += level * 2;
+        // Считаем только физические скиллы при сбросе статов
+        for (Map.Entry<String, Integer> entry : skillLevels.entrySet()) {
+            if (AbilityRegistry.getMagicAbility(entry.getKey()) == null) {
+                IAbility ability = AbilityRegistry.get(entry.getKey());
+                if (ability != null) {
+                    spent += entry.getValue() * ability.getCostPerLevel();
+                } else {
+                    spent += entry.getValue() * 2;
+                }
+            }
         }
         return spent;
     }
@@ -312,17 +394,20 @@ public class PlayerStatsData {
         }
         nbt.put("stats", statsNbt);
 
-        NbtCompound abilitiesNbt = new NbtCompound();
-        for (Map.Entry<String, Integer> entry : abilityLevels.entrySet()) {
-            abilitiesNbt.putInt(entry.getKey(), entry.getValue());
+        NbtCompound skillsNbt = new NbtCompound();
+        for (Map.Entry<String, Integer> entry : skillLevels.entrySet()) {
+            skillsNbt.putInt(entry.getKey(), entry.getValue());
         }
-        nbt.put("abilities", abilitiesNbt);
+        nbt.put("skills", skillsNbt);
 
-        NbtCompound magicNbt = new NbtCompound();
-        for (Map.Entry<String, Integer> entry : magicSkillLevels.entrySet()) {
-            magicNbt.putInt(entry.getKey(), entry.getValue());
+        // Per-player settings
+        nbt.putString("language", language);
+        nbt.putInt("openMenuKey", openMenuKey);
+        NbtCompound bindsNbt = new NbtCompound();
+        for (Map.Entry<String, Integer> entry : keybinds.entrySet()) {
+            bindsNbt.putInt(entry.getKey(), entry.getValue());
         }
-        nbt.put("magicSkills", magicNbt);
+        nbt.put("keybinds", bindsNbt);
 
         return nbt;
     }
@@ -354,14 +439,40 @@ public class PlayerStatsData {
             }
         }
 
-        NbtCompound abilitiesNbt = nbt.getCompound("abilities");
-        for (String key : abilitiesNbt.getKeys()) {
-            data.abilityLevels.put(key, abilitiesNbt.getInt(key));
+        // Единая карта "skills"
+        if (nbt.contains("skills")) {
+            NbtCompound skillsNbt = nbt.getCompound("skills");
+            for (String key : skillsNbt.getKeys()) {
+                data.skillLevels.put(key, skillsNbt.getInt(key));
+            }
         }
 
-        NbtCompound magicNbt = nbt.getCompound("magicSkills");
-        for (String key : magicNbt.getKeys()) {
-            data.magicSkillLevels.put(key, magicNbt.getInt(key));
+        // Миграция старого формата
+        if (nbt.contains("abilities")) {
+            NbtCompound abilitiesNbt = nbt.getCompound("abilities");
+            for (String key : abilitiesNbt.getKeys()) {
+                data.skillLevels.putIfAbsent(key, abilitiesNbt.getInt(key));
+            }
+        }
+        if (nbt.contains("magicSkills")) {
+            NbtCompound magicNbt = nbt.getCompound("magicSkills");
+            for (String key : magicNbt.getKeys()) {
+                data.skillLevels.putIfAbsent(key, magicNbt.getInt(key));
+            }
+        }
+
+        // Per-player settings
+        if (nbt.contains("language")) {
+            data.language = nbt.getString("language");
+        }
+        if (nbt.contains("openMenuKey")) {
+            data.openMenuKey = nbt.getInt("openMenuKey");
+        }
+        if (nbt.contains("keybinds")) {
+            NbtCompound bindsNbt = nbt.getCompound("keybinds");
+            for (String key : bindsNbt.getKeys()) {
+                data.keybinds.put(key, bindsNbt.getInt(key));
+            }
         }
 
         return data;
@@ -374,11 +485,13 @@ public class PlayerStatsData {
         this.currentMana = other.currentMana;
         this.currentStamina = other.currentStamina;
         this.element = other.element;
+        this.language = other.language;
+        this.openMenuKey = other.openMenuKey;
         this.statLevels.clear();
         this.statLevels.putAll(other.statLevels);
-        this.abilityLevels.clear();
-        this.abilityLevels.putAll(other.abilityLevels);
-        this.magicSkillLevels.clear();
-        this.magicSkillLevels.putAll(other.magicSkillLevels);
+        this.skillLevels.clear();
+        this.skillLevels.putAll(other.skillLevels);
+        this.keybinds.clear();
+        this.keybinds.putAll(other.keybinds);
     }
 }

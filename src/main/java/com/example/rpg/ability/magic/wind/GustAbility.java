@@ -9,6 +9,7 @@ import net.minecraft.sound.SoundCategory;
 import net.minecraft.sound.SoundEvents;
 import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Vec3d;
+import org.lwjgl.glfw.GLFW;
 
 public class GustAbility extends MagicAbility {
 
@@ -19,7 +20,27 @@ public class GustAbility extends MagicAbility {
                 .maxLevel(5)
                 .costPerLevel(3)
                 .manaCost(15)
-                .cooldown(5));
+                .cooldown(5)
+                .defaultKey(GLFW.GLFW_KEY_C));
+    }
+
+    @Override
+    public float getPower(int level) {
+        return (float) (1.0 + (Math.max(1, level) * 0.3));
+    }
+
+    @Override
+    public String getUpgradeDescription(int currentLevel) {
+        if (currentLevel == 0) {
+            return com.example.rpg.config.RpgLocale.get("upgrade.unlock_ability")
+                    + com.example.rpg.config.RpgLocale.getSkillName(getId());
+        }
+        if (currentLevel >= getMaxLevel()) {
+            return com.example.rpg.config.RpgLocale.get("upgrade.max_level");
+        }
+        return String.format(com.example.rpg.config.RpgLocale.get("upgrade.gust"),
+                getPower(currentLevel), getPower(currentLevel + 1),
+                getCooldownSeconds(currentLevel), getCooldownSeconds(currentLevel + 1));
     }
 
     @Override
@@ -40,7 +61,7 @@ public class GustAbility extends MagicAbility {
 
         // Отталкиваем врагов
         double range = 4 + skillLevel;
-        double pushPower = 1.0 + skillLevel * 0.3;
+        double pushPower = getPower(skillLevel);
         Box hitBox = new Box(playerPos, playerPos.add(look.multiply(range))).expand(2.0);
 
         world.getEntitiesByClass(net.minecraft.entity.LivingEntity.class, hitBox,

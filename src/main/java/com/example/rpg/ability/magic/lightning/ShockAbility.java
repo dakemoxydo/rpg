@@ -13,6 +13,7 @@ import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.hit.HitResult;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.RaycastContext;
+import org.lwjgl.glfw.GLFW;
 
 public class ShockAbility extends MagicAbility {
 
@@ -23,7 +24,29 @@ public class ShockAbility extends MagicAbility {
                 .maxLevel(5)
                 .costPerLevel(4)
                 .manaCost(35)
-                .cooldown(8));
+                .cooldown(8)
+                .defaultKey(GLFW.GLFW_KEY_C));
+    }
+
+    @Override
+    public float getPower(int level) {
+        return level < 3 ? 0.0f : 5.0f; // Vanilla lightning deals 5 damage
+    }
+
+    @Override
+    public String getUpgradeDescription(int currentLevel) {
+        if (currentLevel == 0) {
+            return com.example.rpg.config.RpgLocale.get("upgrade.unlock_ability")
+                    + com.example.rpg.config.RpgLocale.getSkillName(getId());
+        }
+        if (currentLevel >= getMaxLevel()) {
+            return com.example.rpg.config.RpgLocale.get("upgrade.max_level");
+        }
+        if (currentLevel == 1) {
+            return com.example.rpg.config.RpgLocale.get("upgrade.shock_lvl2");
+        }
+        return String.format(com.example.rpg.config.RpgLocale.get("upgrade.shock"),
+                getCooldownSeconds(currentLevel), getCooldownSeconds(currentLevel + 1));
     }
 
     @Override

@@ -1,10 +1,9 @@
 package com.example.rpg.effect;
 
-import com.example.rpg.ability.Ability;
 import com.example.rpg.ability.AbilityCooldownManager;
 import com.example.rpg.ability.AbilityRegistry;
+import com.example.rpg.ability.Ability;
 import com.example.rpg.ability.IAbility;
-import com.example.rpg.ability.MagicSkillRegistry;
 import com.example.rpg.ability.magic.MagicAbility;
 import com.example.rpg.config.RpgConfig;
 import com.example.rpg.config.RpgLocale;
@@ -47,8 +46,6 @@ public class RpgHudRenderer {
     private static final int ICON_SPACING = 6;
     private static final int POPUP_MARGIN_BOTTOM = 70;
 
-    // Helper record is no longer needed as we use IAbility directly
-
     // ==================== REGISTRATION ====================
 
     public static void register() {
@@ -89,20 +86,21 @@ public class RpgHudRenderer {
         int screenHeight = client.getWindow().getScaledHeight();
         float uiScale = RenderUtils.getUiScale(screenWidth);
 
+        // Собираем активные способности через единый реестр
         List<IAbility> activeAbilities = new ArrayList<>();
 
-        // 1. Regular abilities
-        for (Ability ability : AbilityRegistry.getAll()) {
-            if (data.getAbilityLevel(ability.getId()) > 0) {
+        // 1. Физические способности
+        for (Ability ability : AbilityRegistry.getPhysicalAbilities()) {
+            if (data.hasSkill(ability.getId())) {
                 activeAbilities.add(ability);
             }
         }
 
-        // 2. Magic abilities
+        // 2. Магические способности выбранной стихии
         MagicElement element = data.getElement();
         if (element != MagicElement.NONE) {
-            for (MagicAbility ability : MagicSkillRegistry.getAbilitiesForElement(element)) {
-                if (ability.getManaCost() > 0 && data.getMagicSkillLevel(ability.getId()) > 0) {
+            for (MagicAbility ability : AbilityRegistry.getMagicAbilities(element)) {
+                if (ability.getManaCost() > 0 && data.hasSkill(ability.getId())) {
                     activeAbilities.add(ability);
                 }
             }
@@ -126,15 +124,17 @@ public class RpgHudRenderer {
         int dockTop = startY - scaledPadding;
         int dockBottom = startY + totalAbilitiesHeight + scaledPadding;
 
-        // Premium curved/rounded dock look with deeper gradients and outer shadow
-        context.fillGradient(dockLeft - 2, dockTop - 2, dockRight + 2, dockBottom + 2, 0x66000000, 0x00000000); // Outer
-                                                                                                                // glow
-        context.fillGradient(dockLeft, dockTop, dockRight, dockBottom, 0xDD050505, 0x88111111); // Main Body
+        // Premium curved/rounded dock look
+        context.fillGradient(dockLeft - 2, dockTop - 2, dockRight + 2, dockBottom + 2, 0x66000000, 0x00000000);
+        int dockBgTop = element != MagicElement.NONE ? RenderUtils.withAlpha(element.bgDark, 0.85f) : 0xDD050505;
+        int dockBgBot = element != MagicElement.NONE ? RenderUtils.withAlpha(element.bgMedium, 0.5f) : 0x88111111;
+        context.fillGradient(dockLeft, dockTop, dockRight, dockBottom, dockBgTop, dockBgBot);
+        int dockBorder = element != MagicElement.NONE ? RenderUtils.withAlpha(element.borderSecondary, 0.8f)
+                : 0xFF333333;
         RenderUtils.drawBorder(context, dockLeft - 1, dockTop - 1, dockRight - dockLeft + 2, dockBottom - dockTop + 2,
-                0xFF333333);
+                dockBorder);
 
-        // Intense glowing rim on the left side (since it's on the right edge of the
-        // screen)
+        // Glowing rim
         context.fillGradient(dockLeft, dockTop, dockLeft + 1, dockBottom, element.borderPrimary, 0x00000000);
         context.fillGradient(dockLeft + 1, dockTop, dockLeft + 2, dockBottom,
                 RenderUtils.withAlpha(element.borderSecondary, 0.5f), 0x00000000);
@@ -144,28 +144,28 @@ public class RpgHudRenderer {
 
         for (IAbility ability : activeAbilities) {
             int y = startY + index * (iconSize + spacing);
-            renderAbilityIcon(context, textRenderer, ability, startX, y, iconSize, playerId, uiScale, element);
+            int level = data.getSkillLevel(ability.getId());
+            renderAbilityIcon(context, textRenderer, ability, startX, y, iconSize, playerId, level, uiScale, element);
             index++;
         }
     }
 
     private static void renderAbilityIcon(DrawContext context, TextRenderer textRenderer,
             IAbility ability, int x, int y, int iconSize,
-            UUID playerId, float uiScale, MagicElement element) {
+            UUID playerId, int level, float uiScale, MagicElement element) {
         boolean onCooldown = AbilityCooldownManager.isOnCooldown(playerId, ability.getId());
-        float cdProgress = AbilityCooldownManager.getCooldownProgress(playerId, ability.getId());
+        float cdProgress = AbilityCooldownManager.getCooldownProgress(playerId, ability.getId(), level);
 
         int topBgColor = onCooldown ? 0xDD111111
                 : (ability.usesStamina() ? 0xDD2a2a2a : (0xDD000000 | (element.bgMedium & 0x00FFFFFF)));
         int bottomBgColor = onCooldown ? 0xEE050505
                 : (ability.usesStamina() ? 0xEE111111 : (0xEE000000 | (element.bgDark & 0x00FFFFFF)));
 
-        int borderColor = 0xFF442222;
+        int borderColor = RenderUtils.withAlpha(ability.getThemeColor(), 0.4f);
 
         if (!onCooldown) {
             float pulse = (System.currentTimeMillis() % 2000) / 2000f;
-            int baseBorder = ability.usesStamina() ? 0xFFFFAA00 : element.borderPrimary;
-            borderColor = RenderUtils.blendColors(0xFF444444, baseBorder,
+            borderColor = RenderUtils.blendColors(0xFF444444, ability.getThemeColor(),
                     (float) (Math.sin(pulse * Math.PI * 2) * 0.5 + 0.5));
         }
 
@@ -175,7 +175,7 @@ public class RpgHudRenderer {
         int iconWidth = textRenderer.getWidth(ability.getIcon());
         int iconColor = onCooldown ? 0xFF666666 : 0xFFFFFFFF;
 
-        // Add a subtle drop shadow for the icon itself
+        // Drop shadow
         int shadowOffset = Math.max(1, (int) (1 * uiScale));
         context.drawText(textRenderer, ability.getIcon(), x + (iconSize - iconWidth) / 2 + shadowOffset,
                 y + (iconSize - 8) / 2 + shadowOffset,
@@ -184,7 +184,7 @@ public class RpgHudRenderer {
                 y + (iconSize - 8) / 2,
                 iconColor);
 
-        // Circular wipe style cooldown overlay simulation
+        // Cooldown overlay
         if (cdProgress > 0) {
             int cdHeight = (int) (iconSize * cdProgress);
             context.fillGradient(x + 1, y + iconSize - cdHeight, x + iconSize - 1, y + iconSize - 1, 0xDD000000,
@@ -220,33 +220,42 @@ public class RpgHudRenderer {
         int barWidth = (int) (110 * uiScale);
         int barHeight = Math.max(4, (int) (6 * uiScale));
 
-        // Vanilla hotbar is 182 units wide. We place bars on the left and right of it.
         int hotbarOffset = 91 + (int) (15 * uiScale);
-        int baseY = screenHeight - (int) (18 * uiScale); // Aligned near the bottom
+        int baseY = screenHeight - (int) (18 * uiScale);
 
-        // Left Bar: Stamina (expanding left)
+        // Left Bar: Stamina
         int staminaX = (screenWidth / 2) - hotbarOffset - barWidth;
         String staminaLabel = RpgLocale.get("stat.stamina");
         if (staminaLabel.equals("stat.stamina"))
             staminaLabel = "Stamina";
-        context.drawTextWithShadow(textRenderer, staminaLabel, staminaX, baseY - (int) (10 * uiScale),
-                RenderUtils.brighten(element.getStaminaColor(), 40));
+        int staminaLabelColor = RenderUtils.brighten(element.staminaColor, 40);
+        context.drawTextWithShadow(textRenderer, staminaLabel, staminaX, baseY - (int) (14 * uiScale),
+                staminaLabelColor);
+        // Numeric value above bar (right-aligned)
+        String staminaVal = (int) data.getCurrentStamina() + "/" + data.getMaxStamina();
+        int staminaValX = staminaX + barWidth - textRenderer.getWidth(staminaVal);
+        context.drawTextWithShadow(textRenderer, staminaVal, staminaValX, baseY - (int) (14 * uiScale), 0xFFCCCCCC);
 
         renderHorizontalBar(context, textRenderer, staminaX, baseY, barWidth, barHeight,
                 data.getStaminaProgress(), (int) data.getCurrentStamina(), data.getMaxStamina(),
-                element.bgDark, element.getStaminaColor(), uiScale, false);
+                element.bgDark, element.staminaColor, uiScale, false);
 
-        // Right Bar: Mana (expanding right)
+        // Right Bar: Mana
         int manaX = (screenWidth / 2) + hotbarOffset;
         String manaLabel = RpgLocale.get("stat.mana");
         if (manaLabel.equals("stat.mana"))
             manaLabel = "Mana";
+        int manaLabelColor = RenderUtils.brighten(element.manaColor, 40);
+        // Numeric value above bar (left-aligned)
+        String manaVal = (int) data.getCurrentMana() + "/" + data.getMaxMana();
+        context.drawTextWithShadow(textRenderer, manaVal, manaX, baseY - (int) (14 * uiScale), 0xFFCCCCCC);
+        // Label (right-aligned)
         context.drawTextWithShadow(textRenderer, manaLabel, manaX + barWidth - textRenderer.getWidth(manaLabel),
-                baseY - (int) (10 * uiScale), RenderUtils.brighten(element.getManaColor(), 40));
+                baseY - (int) (14 * uiScale), manaLabelColor);
 
         renderHorizontalBar(context, textRenderer, manaX, baseY, barWidth, barHeight,
                 data.getManaProgress(), (int) data.getCurrentMana(), data.getMaxMana(),
-                element.bgDark, element.getManaColor(), uiScale, true);
+                element.bgDark, element.manaColor, uiScale, true);
     }
 
     private static void renderHorizontalBar(DrawContext context, TextRenderer textRenderer,
@@ -254,10 +263,7 @@ public class RpgHudRenderer {
             float progress, int current, int max,
             int bgColor, int fillColor, float uiScale, boolean fillFromLeft) {
 
-        // Outer Glow/Shadow
         context.fillGradient(x - 2, y - 2, x + width + 2, y + height + 2, 0x88000000, 0x00000000);
-
-        // Sleek Background
         context.fillGradient(x, y, x + width, y + height, 0xDD020202, 0xAA111111);
         RenderUtils.drawBorder(context, x - 1, y - 1, width + 2, height + 2, 0xCC333333);
 
@@ -266,35 +272,23 @@ public class RpgHudRenderer {
             int fillX = fillFromLeft ? x : (x + width - filledWidth);
             context.fillGradient(fillX, y, fillX + filledWidth, y + height, fillColor,
                     RenderUtils.darken(fillColor, 40));
-            // Intense Top highlight
             context.fillGradient(fillX, y, fillX + filledWidth, y + 1, RenderUtils.brighten(fillColor, 80),
                     RenderUtils.brighten(fillColor, 40));
-            // Inner bottom shadow
             context.fill(fillX, y + height - 1, fillX + filledWidth, y + height, 0x55000000);
 
-            // Glowing Edge indicator
             int edgeX = fillFromLeft ? (fillX + filledWidth - 1) : fillX;
             context.fill(edgeX, y, edgeX + 1, y + height, 0xFFFFFFFF);
-            // Edge Bloom
             context.fillGradient(edgeX - 1, y - 1, edgeX + 2, y + height + 1, RenderUtils.withAlpha(fillColor, 0.9f),
                     0x00000000);
         }
 
-        // Draw segmented tick marks for MMO feel
+        // Segmented tick marks
         int segments = 10;
         for (int i = 1; i < segments; i++) {
             int tickX = x + (width * i / segments);
             context.fill(tickX, y + 1, tickX + 1, y + height - 1, 0x77000000);
-            context.fill(tickX + 1, y + 1, tickX + 2, y + height - 1, 0x22FFFFFF); // Inner highlight of tick
+            context.fill(tickX + 1, y + 1, tickX + 2, y + height - 1, 0x22FFFFFF);
         }
-
-        // Values display underneath the bar
-        String valueText = current + " / " + max;
-        int textWidth = textRenderer.getWidth(valueText);
-        int textX = fillFromLeft ? x : (x + width - textWidth);
-        int textY = y + height + (int) (4 * uiScale);
-
-        context.drawTextWithShadow(textRenderer, valueText, textX, textY, 0xFFAAAAAA);
     }
 
     // ==================== LEVEL UP EFFECT ====================
@@ -354,7 +348,6 @@ public class RpgHudRenderer {
         int centerX = screenWidth / 2;
         int centerY = screenHeight / 2 - (int) (20 * uiScale);
 
-        // Screen-wide dark vignette/overlay
         int bgAlphaStart = (int) (alpha * 120) << 24;
         int bgAlphaEnd = (int) (alpha * 220) << 24;
         if (alpha > 0) {
@@ -455,7 +448,6 @@ public class RpgHudRenderer {
 
             int xpColor = popup.xpAmount >= 50 ? element.textTitle
                     : popup.xpAmount >= 20 ? MagicElement.TEXT_SUCCESS : element.textPrimary;
-            // Glowing effect for large amounts
             if (popup.xpAmount >= 50) {
                 context.drawText(textRenderer, xpText, textX, y, RenderUtils.withAlpha(xpColor, alpha * 0.4f), false);
             }

@@ -24,6 +24,25 @@ public class FireballAbility extends MagicAbility {
     }
 
     @Override
+    public float getPower(int level) {
+        return (float) (1.0 + (Math.max(1, level) * 0.2));
+    }
+
+    @Override
+    public String getUpgradeDescription(int currentLevel) {
+        if (currentLevel == 0) {
+            return com.example.rpg.config.RpgLocale.get("upgrade.unlock_ability")
+                    + com.example.rpg.config.RpgLocale.getSkillName(getId());
+        }
+        if (currentLevel >= getMaxLevel()) {
+            return com.example.rpg.config.RpgLocale.get("upgrade.max_level");
+        }
+        return String.format(com.example.rpg.config.RpgLocale.get("upgrade.fireball"),
+                getPower(currentLevel), getPower(currentLevel + 1),
+                getCooldownSeconds(currentLevel), getCooldownSeconds(currentLevel + 1));
+    }
+
+    @Override
     public void execute(ServerPlayerEntity player, int skillLevel) {
         Vec3d look = player.getRotationVector();
         Vec3d pos = player.getEyePos();
@@ -35,7 +54,7 @@ public class FireballAbility extends MagicAbility {
 
         fireball.setPosition(pos.x + look.x * 0.5, pos.y, pos.z + look.z * 0.5);
 
-        double speed = 1.0 + (skillLevel * 0.2);
+        double speed = getPower(skillLevel);
         fireball.setVelocity(look.x * speed, look.y * speed, look.z * speed);
 
         player.getWorld().spawnEntity(fireball);

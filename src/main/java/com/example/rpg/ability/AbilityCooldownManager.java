@@ -8,6 +8,10 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
+/**
+ * Управляет кулдаунами всех способностей для каждого игрока.
+ * Работает через единый AbilityRegistry.
+ */
 public class AbilityCooldownManager {
 
     // UUID игрока -> (ID способности -> оставшееся КД в тиках)
@@ -28,22 +32,14 @@ public class AbilityCooldownManager {
         return getCooldown(playerId, abilityId) > 0;
     }
 
-    public static IAbility getAnyAbility(String abilityId) {
+    public static float getCooldownProgress(UUID playerId, String abilityId, int level) {
         IAbility ability = AbilityRegistry.get(abilityId);
-        if (ability == null) {
-            ability = MagicSkillRegistry.getAbility(abilityId);
-        }
-        return ability;
-    }
-
-    public static float getCooldownProgress(UUID playerId, String abilityId) {
-        IAbility ability = getAnyAbility(abilityId);
         if (ability == null)
             return 0;
         int remaining = getCooldown(playerId, abilityId);
         if (remaining <= 0)
             return 0;
-        return (float) remaining / ability.getCooldownTicks();
+        return (float) remaining / ability.getCooldownTicks(Math.max(1, level));
     }
 
     public static void tick(UUID playerId) {

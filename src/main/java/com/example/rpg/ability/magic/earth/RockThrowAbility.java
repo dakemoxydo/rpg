@@ -11,6 +11,7 @@ import net.minecraft.server.world.ServerWorld;
 import net.minecraft.sound.SoundCategory;
 import net.minecraft.sound.SoundEvents;
 import net.minecraft.util.math.Vec3d;
+import org.lwjgl.glfw.GLFW;
 
 public class RockThrowAbility extends MagicAbility {
 
@@ -21,7 +22,27 @@ public class RockThrowAbility extends MagicAbility {
                 .maxLevel(5)
                 .costPerLevel(3)
                 .manaCost(20)
-                .cooldown(4));
+                .cooldown(4)
+                .defaultKey(GLFW.GLFW_KEY_C));
+    }
+
+    @Override
+    public float getPower(int level) {
+        return 10.0f + (Math.max(1, level) * 5.0f);
+    }
+
+    @Override
+    public String getUpgradeDescription(int currentLevel) {
+        if (currentLevel == 0) {
+            return com.example.rpg.config.RpgLocale.get("upgrade.unlock_ability")
+                    + com.example.rpg.config.RpgLocale.getSkillName(getId());
+        }
+        if (currentLevel >= getMaxLevel()) {
+            return com.example.rpg.config.RpgLocale.get("upgrade.max_level");
+        }
+        return String.format(com.example.rpg.config.RpgLocale.get("upgrade.rock_throw"),
+                getPower(currentLevel), getPower(currentLevel + 1),
+                getCooldownSeconds(currentLevel), getCooldownSeconds(currentLevel + 1));
     }
 
     @Override
@@ -43,7 +64,7 @@ public class RockThrowAbility extends MagicAbility {
 
             // ИСПРАВЛЕНО: Аргументы (урон за блок падения, максимальный урон)
             // 2.0f урона за блок, макс урон зависит от уровня скилла
-            rock.setHurtEntities(2.0f, 10 + skillLevel * 5);
+            rock.setHurtEntities(2.0f, (int) getPower(skillLevel));
         }
 
         // Частицы земли

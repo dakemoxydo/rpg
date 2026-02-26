@@ -6,7 +6,8 @@ import com.example.rpg.stats.MagicElement;
 import com.example.rpg.utils.RenderUtils;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.gui.widget.ButtonWidget;
+import net.minecraft.client.sound.PositionedSoundInstance;
+import net.minecraft.sound.SoundEvents;
 import net.minecraft.text.Text;
 
 import java.util.ArrayList;
@@ -25,7 +26,8 @@ public class ElementSelectionScreen extends Screen {
 
     private class TarotCard {
         MagicElement element;
-        int x, y, width, height, currentY;
+        int x, y, width, height;
+        float currentY;
 
         TarotCard(MagicElement el, int x, int y, int w, int h) {
             this.element = el;
@@ -37,7 +39,8 @@ public class ElementSelectionScreen extends Screen {
         }
 
         boolean isHovered(int mouseX, int mouseY) {
-            return mouseX >= x && mouseX <= x + width && mouseY >= currentY && mouseY <= currentY + height;
+            return mouseX >= x && mouseX <= x + width
+                    && mouseY >= (int) currentY && mouseY <= (int) currentY + height;
         }
     }
 
@@ -51,8 +54,8 @@ public class ElementSelectionScreen extends Screen {
         calculateAdaptiveSizes();
         cards.clear();
 
-        MagicElement[] elements = { MagicElement.FIRE, MagicElement.WATER, MagicElement.WIND, MagicElement.LIGHTNING,
-                MagicElement.EARTH };
+        MagicElement[] elements = { MagicElement.FIRE, MagicElement.WATER, MagicElement.WIND,
+                MagicElement.LIGHTNING, MagicElement.EARTH };
 
         int cardWidth = (int) (100 * uiScale);
         int cardHeight = (int) (180 * uiScale);
@@ -66,16 +69,12 @@ public class ElementSelectionScreen extends Screen {
             MagicElement el = elements[i];
             int cx = startX + i * (cardWidth + spacing);
             cards.add(new TarotCard(el, cx, startY, cardWidth, cardHeight));
-
-            this.addDrawableChild(ButtonWidget.builder(Text.literal(""), b -> {
-                StatsNetworking.sendSetElement(el);
-                this.close();
-            }).dimensions(cx, startY, cardWidth, cardHeight).build());
         }
     }
 
     private void calculateAdaptiveSizes() {
-        uiScale = Math.max(0.6f, Math.min(1.0f, Math.min((float) this.width / 640, (float) this.height / 360)));
+        uiScale = Math.max(0.6f, Math.min(1.0f, Math.min(
+                (float) this.width / 640, (float) this.height / 360)));
     }
 
     @Override
@@ -92,7 +91,9 @@ public class ElementSelectionScreen extends Screen {
         }
 
         // Target Background Colors
-        int targetBgTop = lastHovered != null ? RenderUtils.withAlpha(lastHovered.element.bgDark, 0.4f) : 0xFF050505;
+        int targetBgTop = lastHovered != null
+                ? RenderUtils.withAlpha(lastHovered.element.bgDark, 0.4f)
+                : 0xFF050505;
         int targetBgBot = 0xFF050505;
 
         // Lerp Background Colors
@@ -114,7 +115,7 @@ public class ElementSelectionScreen extends Screen {
         float targetTextFade = lastHovered != null ? 1f : 0f;
         textFade += (targetTextFade - textFade) * 0.15f;
 
-        // Render Title/Desc
+        // Render element title+desc on hover
         if (textFade > 0.01f && lastHovered != null) {
             String title = RpgLocale.getElementName(lastHovered.element.name().toLowerCase());
             String desc = RpgLocale.getElementDesc(lastHovered.element.name().toLowerCase());
@@ -124,46 +125,56 @@ public class ElementSelectionScreen extends Screen {
             int descColor = (alpha << 24) | 0x00AAAAAA;
 
             context.drawCenteredTextWithShadow(this.textRenderer, lastHovered.element.getIcon() + " " + title,
-                    this.width / 2, (int) (40 * uiScale), titleColor);
-            context.drawCenteredTextWithShadow(this.textRenderer, desc, this.width / 2, (int) (60 * uiScale),
+                    this.width / 2, (int) (30 * uiScale), titleColor);
+            context.drawCenteredTextWithShadow(this.textRenderer, desc, this.width / 2, (int) (48 * uiScale),
                     descColor);
+
+            // Hover hint
+            int hintAlpha = (int) (textFade * 180);
+            int hintColor = (hintAlpha << 24) | 0x00FFFF55;
+            context.drawCenteredTextWithShadow(this.textRenderer,
+                    RpgLocale.get("element.click_hint"),
+                    this.width / 2, (int) (64 * uiScale), hintColor);
         }
 
+        // Default "choose your element" text with cross-fade
         if (textFade < 0.99f) {
             String choose = RpgLocale.get("element.title");
             int alpha = (int) ((1f - textFade) * 255);
             int chooseColor = (alpha << 24) | 0x00FFFFFF;
-            context.drawCenteredTextWithShadow(this.textRenderer, choose, this.width / 2, (int) (50 * uiScale),
-                    chooseColor);
+            context.drawCenteredTextWithShadow(this.textRenderer, choose, this.width / 2,
+                    (int) (50 * uiScale), chooseColor);
         }
 
         // Render Cards
         for (TarotCard card : cards) {
-            boolean isHovered = card == lastHovered;
+            boolean isHovered = card == hovered;
+            boolean isLastHovered = card == lastHovered;
 
-            // Interaction Animation: Lift card up by 15 scaled pixels
-            int targetY = isHovered ? card.y - (int) (15 * uiScale) : card.y;
-            card.currentY += (targetY - card.currentY) * 0.3f; // Smooth interpolation
+            // Interaction Animation: Lift card up
+            float targetY = isHovered ? card.y - (int) (15 * uiScale) : card.y;
+            card.currentY += (targetY - card.currentY) * 0.3f;
 
             int cx = card.x;
-            int cy = card.currentY;
+            int cy = (int) card.currentY;
             int cw = card.width;
             int ch = card.height;
 
-            // Card Shadow
-            context.fill(cx + 4, cy + 4, cx + cw + 4, cy + ch + 4, 0x88000000);
+            // Glass panel style: shadow + gradient + double border
+            int cBgTop = RenderUtils.withAlpha(card.element.bgDark, isLastHovered ? 0.95f : 0.85f);
+            int cBgBot = RenderUtils.withAlpha(card.element.bgMedium, isLastHovered ? 0.95f : 0.85f);
+            int borderP = isHovered ? card.element.borderPrimary : card.element.borderSecondary;
+            int borderS = card.element.borderSecondary;
 
-            // Card Background
-            int cBgTop = RenderUtils.withAlpha(card.element.bgDark, 0.9f);
-            int cBgBot = RenderUtils.withAlpha(card.element.bgMedium, 0.9f);
-            context.fillGradient(cx, cy, cx + cw, cy + ch, cBgTop, cBgBot);
+            if (isHovered) {
+                // Animated glow border on hover
+                float glow = (float) (Math.sin(System.currentTimeMillis() % 2000 / 2000.0 * Math.PI * 2) * 0.5 + 0.5);
+                borderP = RenderUtils.blendColors(card.element.borderSecondary, card.element.borderPrimary, glow);
+            }
 
-            // Borders
-            int borderColor = isHovered ? card.element.borderPrimary : card.element.borderSecondary;
-            RenderUtils.drawBorder(context, cx, cy, cw, ch, borderColor);
-            RenderUtils.drawBorder(context, cx + 2, cy + 2, cw - 4, ch - 4, RenderUtils.withAlpha(borderColor, 0.5f));
+            RenderUtils.drawGlassPanel(context, cx, cy, cw, ch, cBgTop, cBgBot, borderP, borderS);
 
-            // Card Icon & Inner Element Display
+            // Card Icon with scale
             int iconScale = (int) (2 * uiScale);
             context.getMatrices().push();
             context.getMatrices().translate(cx + cw / 2.0f, cy + ch / 2.0f - (int) (20 * uiScale), 0);
@@ -171,7 +182,8 @@ public class ElementSelectionScreen extends Screen {
             float pulse = isHovered
                     ? (float) (Math.sin(System.currentTimeMillis() % 1000 / 1000.0 * Math.PI * 2) * 0.5 + 0.5)
                     : 1f;
-            int iconColor = isHovered ? RenderUtils.blendColors(card.element.textPrimary, card.element.textTitle, pulse)
+            int iconColor = isLastHovered
+                    ? RenderUtils.blendColors(card.element.textPrimary, card.element.textTitle, pulse)
                     : 0xFFAAAAAA;
 
             int iconW = this.textRenderer.getWidth(card.element.getIcon());
@@ -179,28 +191,37 @@ public class ElementSelectionScreen extends Screen {
                     -this.textRenderer.fontHeight / 2, iconColor);
             context.getMatrices().pop();
 
-            // Card Name at bottom of card
+            // Card Name at bottom
             String name = RpgLocale.getElementName(card.element.name().toLowerCase());
             if (this.textRenderer.getWidth(name) > cw - 8)
                 name = name.substring(0, 3) + "..";
-            context.drawCenteredTextWithShadow(this.textRenderer, name, cx + cw / 2, cy + ch - (int) (25 * uiScale),
-                    card.element.textTitle);
+            int nameColor = isLastHovered ? card.element.textTitle : 0xFFAAAAAA;
+            context.drawCenteredTextWithShadow(this.textRenderer, name, cx + cw / 2,
+                    cy + ch - (int) (25 * uiScale), nameColor);
         }
+    }
 
-        // Call super to handle button clicks (since we added invisible buttons over the
-        // cards)
-        // Wait, super.render draws the buttons (which have no text but have standard
-        // button styling).
-        // Let's hide the typical button rendering by NOT calling super.render, but
-        // manually handling clicks,
-        // OR we can just let standard buttons render their hover overlay?
-        // Actually, we added ButtonWidget with Text.literal(""). Minecraft will draw a
-        // vanilla button over our cards!
-        // We do NOT want that. We should make the buttons invisible or not use
-        // super.render.
-        // Let's NOT call super.render, but how do clicks work? Activity is handled by
-        // Screen's mouseClicked inherently traversing children.
-        // So we don't need super.render to make the buttons clickable!
+    // ==================== INPUT ====================
+
+    @Override
+    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        int mx = (int) mouseX, my = (int) mouseY;
+        for (TarotCard card : cards) {
+            if (card.isHovered(mx, my)) {
+                playClickSound();
+                StatsNetworking.sendSetElement(card.element);
+                this.close();
+                return true;
+            }
+        }
+        return super.mouseClicked(mouseX, mouseY, button);
+    }
+
+    private void playClickSound() {
+        if (this.client != null) {
+            this.client.getSoundManager().play(
+                    PositionedSoundInstance.master(SoundEvents.UI_BUTTON_CLICK, 1.0f));
+        }
     }
 
     @Override

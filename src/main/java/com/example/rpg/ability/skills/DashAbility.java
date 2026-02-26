@@ -19,12 +19,32 @@ public class DashAbility extends Ability {
                 .cooldown(5)
                 .usesStamina()
                 .defaultKey(GLFW.GLFW_KEY_R) // Дефолтный бинд: R
+                .themeColor(0xFFFFAA00) // Оранжевый цвет стамины
         );
     }
 
     @Override
+    public float getPower(int level) {
+        return (float) (1.5 + (Math.max(1, level) * 0.5));
+    }
+
+    @Override
+    public String getUpgradeDescription(int currentLevel) {
+        if (currentLevel == 0) {
+            return com.example.rpg.config.RpgLocale.get("upgrade.unlock_ability")
+                    + com.example.rpg.config.RpgLocale.getAbilityName(getId());
+        }
+        if (currentLevel >= getMaxLevel()) {
+            return com.example.rpg.config.RpgLocale.get("upgrade.max_level");
+        }
+        return String.format(com.example.rpg.config.RpgLocale.get("upgrade.dash"),
+                getPower(currentLevel), getPower(currentLevel + 1),
+                getCooldownSeconds(currentLevel), getCooldownSeconds(currentLevel + 1));
+    }
+
+    @Override
     public void execute(ServerPlayerEntity player, int abilityLevel) {
-        double dashPower = 1.5 + (abilityLevel * 0.5);
+        double dashPower = getPower(abilityLevel);
 
         Vec3d lookDirection = player.getRotationVector();
         Vec3d velocity = lookDirection.multiply(dashPower);
@@ -43,8 +63,7 @@ public class DashAbility extends Ability {
                 player.getX(), player.getY(), player.getZ(),
                 SoundEvents.ENTITY_ENDERMAN_TELEPORT,
                 SoundCategory.PLAYERS,
-                0.5f, 1.5f
-        );
+                0.5f, 1.5f);
     }
 
     @Override

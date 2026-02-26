@@ -2,70 +2,71 @@ package com.example.rpg;
 
 import com.example.rpg.ability.AbilityCooldownManager;
 import com.example.rpg.ability.AbilityRegistry;
-import com.example.rpg.ability.MagicSkillRegistry;
 import com.example.rpg.command.RpgCommands;
-import com.example.rpg.event.RpgEventHandlers;  // Изменено
+import com.example.rpg.event.RpgEventHandlers;
 import com.example.rpg.network.StatsNetworking;
-import com.example.rpg.stats.*;
+import com.example.rpg.stats.PlayerStatsData;
+import com.example.rpg.stats.RpgWorldData;
+import com.example.rpg.stats.StatsManager;
 import net.fabricmc.api.ModInitializer;
-import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
+import net.minecraft.server.network.ServerPlayerEntity;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class Rpg implements ModInitializer {
 
-    public static final String MOD_ID = "rpg";
-    public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
-
-    private static int regenTickCounter = 0;
+    public static final Logger LOGGER = LoggerFactory.getLogger("rpg");
 
     @Override
     public void onInitialize() {
-        LOGGER.info("RPG Mod loading...");
+        LOGGER.info("RPG Stats Mod initializing...");
 
+        // Единый реестр способностей (грузит static-блок)
         AbilityRegistry.init();
-        MagicSkillRegistry.init();
+
+        // Регистрация сетевых обработчиков
         StatsNetworking.registerServerHandlers();
-        RpgEventHandlers.register();  // Изменено - теперь один вызов вместо двух
+
+        // Команды
         RpgCommands.register();
 
+        // Обработчики событий (XP за убийства, добычу)
+        RpgEventHandlers.register();
+
+        // Подключение игрока: загрузка данных, применение статов
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
-            var player = handler.getPlayer();
+            ServerPlayerEntity player = handler.getPlayer();
             RpgWorldData worldData = RpgWorldData.get(server);
             PlayerStatsData data = worldData.getPlayerData(player.getUuid());
+
             StatsManager.applyStats(player, data);
             StatsNetworking.syncToClient(player);
+            StatsNetworking.syncResources(player);
+            AbilityCooldownManager.syncAllCooldowns(player);
         });
 
-        ServerPlayerEvents.AFTER_RESPAWN.register((oldPlayer, newPlayer, alive) -> {
-            RpgWorldData worldData = RpgWorldData.get(newPlayer.getServer());
-            PlayerStatsData data = worldData.getPlayerData(newPlayer.getUuid());
-            data.setCurrentMana(data.getMaxMana());
-            data.setCurrentStamina(data.getMaxStamina());
-            worldData.markDirty();
-            StatsManager.applyStats(newPlayer, data);
-            StatsNetworking.syncToClient(newPlayer);
-        });
-
+        // Серверный тик: регенерация ресурсов, тик кулдаунов
         ServerTickEvents.END_SERVER_TICK.register(server -> {
-            regenTickCounter++;
-            for (var player : server.getPlayerManager().getPlayerList()) {
+            for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
                 RpgWorldData worldData = RpgWorldData.get(server);
                 PlayerStatsData data = worldData.getPlayerData(player.getUuid());
 
-                if (regenTickCounter % 10 == 0) {
-                    boolean changed = false;
-                    if (data.getCurrentMana() < data.getMaxMana()) { data.regenMana(0.5f); changed = true; }
-                    if (data.getCurrentStamina() < data.getMaxStamina()) { data.regenStamina(0.5f); changed = true; }
-                    if (changed) { worldData.markDirty(); StatsNetworking.syncToClient(player); }
-                }
+                // Регенерация маны и стамины каждый тик (1/20 секунды)
+                data.regenMana(0.05f);
+                data.regenStamina(0.05f);
+
+                // Тик кулдаунов
                 AbilityCooldownManager.tick(player.getUuid());
+
+                // Синхронизация ресурсов каждую секунду
+                if (server.getTicks() % 20 == 0) {
+                    StatsNetworking.syncResources(player);
+                }
             }
-            if (regenTickCounter >= 1000) regenTickCounter = 0;
         });
 
-        LOGGER.info("RPG Mod loaded!");
+        LOGGER.info("RPG Stats Mod initialized!");
     }
 }
